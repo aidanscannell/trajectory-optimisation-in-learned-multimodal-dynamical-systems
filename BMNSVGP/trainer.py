@@ -1,6 +1,6 @@
 import tensorflow as tf
 import gpflow
-from utils import run_adam, plot_loss, plot_model
+from utils import run_adam, plot_loss, plot_model, plot_a
 from model import BMNSVGP
 from gen_data import gen_data
 
@@ -32,5 +32,11 @@ logger = run_adam(m, maxiter=gpflow.test_util.notebook_niter(15000))
 
 print('Finished optimising model.')
 
-saver = gpflow.saver.Saver()
-saver.save('../saved_models/bmnsvgp', m)
+plot_loss(logger)
+plot_model(m, m1=True, m2=True)
+plot_a(m, a)
+plot_model(m, a=True)
+plot_model(m, y=True)
+
+# saver = gpflow.saver.Saver()
+# saver.save('../saved_models/bmnsvgp', m)

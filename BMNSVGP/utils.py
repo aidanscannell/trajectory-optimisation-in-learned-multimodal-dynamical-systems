@@ -33,6 +33,7 @@ def plot_loss(logger):
     plt.plot(-np.array(logger.logf))
     plt.xlabel('iteration (x10)')
     plt.ylabel('ELBO')
+    plt.show()
 
 
 def plot_model(m,
@@ -129,3 +130,39 @@ def plot_model(m,
     plt.tick_params(labelsize=20)
     if save_name is not False:
         plt.savefig(save_name, transparent=True, bbox_inches='tight')
+    plt.show()
+
+
+def plot_a(m, a, save_name=False):
+    fig = plt.figure(figsize=(12, 4))
+    # pX = np.linspace(-1, 1, 100)[:, None]  # Test locations
+    pX = np.linspace(m.X.value.min(), m.X.value.max(), 100)[:, None]
+
+    plt.plot(m.X.value, a, '-', color='k', label='True $\\alpha$', alpha=0.9)
+    plt.plot(m.feature_f_low.Z.value,
+             np.zeros(m.feature_f_low.Z.value.shape),
+             'k|',
+             mew=2)
+    plt.plot(m.feature_f_high.Z.value,
+             np.zeros(m.feature_f_high.Z.value.shape),
+             'b|',
+             mew=2)
+    a_mu, a_var = m.predict_a(pX)  # Predict alpha values at test locations
+    #     plt.plot(pX, a_mu, color='olive', lw=1.5)
+    #     plt.fill_between(pX[:, 0], (a_mu-2*a_var**0.5)[:, 0], (a_mu+2*a_var**0.5)[:, 0], color='blue', alpha=0.4, lw=1.5, label='$\\alpha$')
+    plt.plot(pX, -a_mu + 1., color='olive', lw=1.5)
+    plt.fill_between(pX[:, 0],
+                     -(a_mu - 2 * a_var**0.5)[:, 0] + 1.,
+                     -(a_mu + 2 * a_var**0.5)[:, 0] + 1.,
+                     color='blue',
+                     alpha=0.4,
+                     lw=1.5,
+                     label='Learnt $\\alpha$')
+    fig.legend(loc='lower right', fontsize=15)
+    plt.xlabel('$(\mathbf{s}_{t-1}, \mathbf{a}_{t-1})$', fontsize=30)
+    plt.ylabel('$\\alpha$', fontsize=30)
+    #     plt.xlim(-1.0, 1.2)
+    plt.tick_params(labelsize=20)
+    if save_name is not False:
+        plt.savefig(save_name, transparent=True, bbox_inches='tight')
+    plt.show()

@@ -34,8 +34,9 @@ def gen_data(N=600,
 
     # Bernoulli indicator variable, 0 = low noise, 1 = high noise
     a = np.zeros([N, 1])
-    a[-N2:] = 1
-    a[:N2] = 1
+    a[X < 0] = 1
+    # a[-N2:] = 1
+    # a[:N2] = 1
 
     if plot_flag is True:
         plot_data(X, Y, a, N2, func)

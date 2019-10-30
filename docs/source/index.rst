@@ -1,16 +1,10 @@
+.. Bimodal Noise SVGP documentation master file, created by
+   sphinx-quickstart on Wed Oct 30 16:10:12 2019.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
 Welcome to Bimodal Noise SVGP's documentation!
 ==============================================
-
-
-.. automodule:: model
-    :members:
-    :undoc-members:
-    :private-members:
-
-.. automodule:: likelihood
-    :members:
-    :undoc-members:
-    :private-members:
 
 .. toctree::
    :maxdepth: 2

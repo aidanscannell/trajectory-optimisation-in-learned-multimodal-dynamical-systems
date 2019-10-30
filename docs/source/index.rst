@@ -10,7 +10,8 @@ Welcome to Bimodal Noise SVGP's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+.. automodule:: model
+    :members
 
 Indices and tables
 ==================

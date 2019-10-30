@@ -1,6 +1,7 @@
 import gpflow
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import cm
 
 
 class Logger(gpflow.actions.Action):
@@ -166,3 +167,204 @@ def plot_a(m, a, save_name=False):
     if save_name is not False:
         plt.savefig(save_name, transparent=True, bbox_inches='tight')
     plt.show()
+
+
+def plot_contour(ax, x, y, z, a=None, contour=None, inputs=False):
+    # surf = ax.contourf(x, y, z, cmap=cm.cool, linewidth=0, antialiased=False)
+    surf = ax.contourf(x,
+                       y,
+                       z,
+                       cmap=cm.coolwarm,
+                       linewidth=0,
+                       antialiased=False)
+    cont = None
+    if contour is not None and a is not None:
+        cont = ax.contour(x, y, a, levels=contour)
+    if contour is not None and a is None:
+        cont = ax.contour(x, y, z, levels=contour)
+    if inputs is True:
+        # plt.plot(x.flatten(), y.flatten(), 'xk')
+        plt.plot(X_[:, 0], X_[:, 1], 'xk')
+    plt.xlim(-2, 2)
+    plt.ylim(-2, 2)
+    return surf, cont
+
+
+def plot_contourf(x,
+                  y,
+                  z,
+                  a=None,
+                  contour=None,
+                  title=None,
+                  inputs=False,
+                  save_name=None):
+    fig = plt.figure(figsize=(12, 4))
+    ax = fig.gca()
+    surf, cont = plot_contour(ax, x, y, z, a, contour, inputs=inputs)
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.title(title)
+    if save_name is not None:
+        plt.savefig(save_name, transparent=True, bbox_inches='tight')
+    plt.show()
+
+
+def plot_contourf_var(x,
+                      y,
+                      z,
+                      z_var,
+                      a=None,
+                      contour=None,
+                      title=None,
+                      inputs=False,
+                      save_name=None):
+    # fig, axs = plt.subplot(2, sharex=True, sharey=True)
+    fig, axs = plt.subplots(1, 2, figsize=(24, 4))
+    plt.subplots_adjust(wspace=0, hspace=0)
+
+    surf_mu, cont_mu = plot_contour(axs[0], x, y, z, a, contour, inputs)
+    cbar = fig.colorbar(surf_mu, shrink=0.5, aspect=5, ax=axs[0])
+    cbar.set_label('mean')
+    surf_var, cont_var = plot_contour(axs[1], x, y, z_var, a, contour, inputs)
+    cbar = fig.colorbar(surf_var, shrink=0.5, aspect=5, ax=axs[1])
+    cbar.set_label('variance')
+
+    plt.suptitle(title)
+    if save_name is not None:
+        plt.savefig(save_name, transparent=True, bbox_inches='tight')
+    plt.show()
+
+
+def plot_model2D(m,
+                 f=False,
+                 a=False,
+                 a_true=None,
+                 h=False,
+                 y=False,
+                 y_true=False,
+                 y_a=None,
+                 inputs=False,
+                 var=False,
+                 save_name=None):
+
+    N = int(np.sqrt(m.X.value.shape[0]))
+    # low = -1; high = 1
+    # low = -1.5; high = 1.5
+    low = -2
+    high = 2
+    xx, yy = np.mgrid[low:high:N * 1j, low:high:N * 1j]
+    # Need an (N, 2) array of (x, y) pairs.
+    xy = np.column_stack([xx.flat, yy.flat])
+
+    mx = m.X.value[:, 0].reshape(N, N)
+    my = m.X.value[:, 1].reshape(N, N)
+    mz1 = m.Y.value[:, 0].reshape(N, N)
+    mz2 = m.Y.value[:, 1].reshape(N, N)
+
+    if a is True:
+        a_mu, a_var = m.predict_a(xy)  # Predict alpha values at test locations
+        # plot_contourf(xx, yy, a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha')
+        # plot_contourf(xx, yy, 1-a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
+        plot_contourf_var(xx,
+                          yy,
+                          a_mu.reshape(xx.shape),
+                          a_var.reshape(xx.shape),
+                          contour=[0.5],
+                          title='predicted alpha',
+                          inputs=inputs,
+                          save_name="img/learned_alpha" + save_name + ".pdf")
+        # plot_contourf_var(xx, yy, 1-a_mu.reshape(xx.shape), a_var.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted', inputs=inputs)
+
+    if a_true is not None:
+        plot_contourf(mx,
+                      my,
+                      a_true.reshape(xx.shape),
+                      contour=[0.5],
+                      title='Original alpha',
+                      inputs=inputs,
+                      save_name="img/original_alpha" + save_name + ".pdf")
+
+    if f is True:
+        f_mus, f_vars = m.predict_f(
+            xy)  # Predict alpha values at test locations
+        for i, (f_mu, f_var) in enumerate(zip(f_mus, f_vars)):
+            plot_contourf_var(xx,
+                              yy,
+                              f_mu[:, 0].reshape(xx.shape),
+                              f_var[:, 0].reshape(xx.shape),
+                              title=('predicted $f_%i$ dim 1' % i),
+                              inputs=inputs)
+            plot_contourf_var(xx,
+                              yy,
+                              f_mu[:, 1].reshape(xx.shape),
+                              f_var[:, 1].reshape(xx.shape),
+                              title=('predicted $f_%i$ dim 2' % i),
+                              inputs=inputs)
+
+    if y is True:
+        y_mu, y_var = m.predict_y(xy)  # Predict alpha values at test locations
+        print(y_mu.shape)
+        if y_a is not None:
+            # plot_contourf(xx, yy, y_mu.reshape(xx.shape), a=y_a.reshape(xx.shape), contour=[0.5], title='predicted y')
+            # plot_contourf_var(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y', inputs=inputs)
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 0].reshape(xx.shape),
+                              y_var[:, 0].reshape(xx.shape),
+                              title='predicted y dim 1',
+                              inputs=inputs)
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 1].reshape(xx.shape),
+                              y_var[:, 1].reshape(xx.shape),
+                              title='predicted y dim 2',
+                              inputs=inputs)
+        else:
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 0].reshape(xx.shape),
+                              y_var[:, 0].reshape(xx.shape),
+                              title='predicted y dim 1',
+                              inputs=inputs)
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 1].reshape(xx.shape),
+                              y_var[:, 1].reshape(xx.shape),
+                              title='predicted y dim 2',
+                              inputs=inputs)
+            # plot_contourf(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y', inputs=inputs)
+            # TODO: how to plot variance of GPs??
+
+    if y_true is True:
+        if y_a is not None:
+            plot_contourf(mx,
+                          my,
+                          mz1,
+                          a=y_a.reshape(mx.shape),
+                          contour=[0.5],
+                          title='original y dim 1',
+                          inputs=inputs)
+            plot_contourf(mx,
+                          my,
+                          mz2,
+                          a=y_a.reshape(mx.shape),
+                          contour=[0.5],
+                          title='original y dim 2',
+                          inputs=inputs)
+        else:
+            plot_contourf(mx, my, mz1, title='original y dim 1', inputs=inputs)
+            plot_contourf(mx, my, mz2, title='original y dim 2', inputs=inputs)
+
+    if var is True:
+        lik_var, f_var = m.predict_vars(xy)
+        plot_contourf_var(xx,
+                          yy,
+                          lik_var.reshape(xx.shape),
+                          f_var.reshape(xx.shape),
+                          title='noise variance vs GP covariance',
+                          inputs=inputs)
+
+
+# plot_model2D(m, a=True, a_true=a, y=True, y_true=True, y_a=a)
+# plot_model2D(m, a=True, a_true=a)
+# plot_model2D(m, f=True, y_true=True, y_a=a)
+# plot_model2D(m, f=True)

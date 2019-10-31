@@ -37,6 +37,26 @@ def plot_loss(logger):
     plt.show()
 
 
+def plot_data_1d(X, Y, a, func, title=None):
+    plt.figure(figsize=(12, 4))
+    plt.plot(X, Y, 'x', color='k', alpha=0.4, label="Observations")
+    X = X.flatten()
+    order = np.argsort(X)
+    # plt.plot(X[order], a[order], '-', color='b', alpha=0.4, label="$alpha$")
+    aa = np.where(a > 0.5, np.ones(a.shape), np.zeros(a.shape))
+    plt.plot(X[order], aa[order], '-', color='k', alpha=0.4, label="$alpha$")
+    Xt = np.linspace(-1.1, 1.1, 1000)[:, None]
+    Yt = func(Xt)
+    plt.plot(Xt, Yt, c='k')  # , label="Underlying function"
+    plt.xlabel("$(\mathbf{s}_{t-1}, \mathbf{a}_{t-1})$", fontsize=20)
+    plt.ylabel("$\mathbf{s}_t$", fontsize=20)
+    plt.tick_params(labelsize=20)
+    plt.ylim(-2.1, 2.1)
+    plt.legend(loc='lower right', fontsize=15)
+    plt.title(title)
+    plt.show()
+
+
 def plot_model(m,
                m1=False,
                m2=False,

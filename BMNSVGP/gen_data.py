@@ -1,5 +1,14 @@
 import numpy as np
-import matplotlib.pyplot as plt
+from scipy.stats import multivariate_normal
+from utils import plot_contourf, plot_data_1d
+
+
+def func1(X):
+    return X[:, 0]**2 + X[:, 1]**2
+
+
+def func2(X):
+    return X[:, 0]**2 - X[:, 1]**2
 
 
 def func(x):
@@ -8,69 +17,97 @@ def func(x):
 
 
 def gen_data(N=600,
-             frac=0.4,
+             input_dim=1,
+             output_dim=1,
+             low_lim=-1,
+             high_lim=1,
              low_noise_var=0.005,
              high_noise_var=0.3,
+             func_list=None,
              plot_flag=False):
     """
-    N - number of training observations
-    a - fraction of observations in mode 2 (high noise mode)
+    This function creates datasets with either 1D/2D inputs and 1D/2D outputs
+    depending on the functions passed in func_list.
+
+    Parameters
+    ----------
+        N - number of training observations (if 2d input N should be a squre number)
+        input_dim - dimensionality of inputs
+        output_dim - dimensionality of outputs
+        low_lim - lowest number in all dimensions of input
+        high_lim - highest number in all dimensions of input
+        low_noise_var - variance used to add iid Gaussian noise to low noise regions
+        high_noise_var - variance used to add iid Gaussian noise to high noise regions
+        func_list - list of functions, one for each output dimension.
+                    length=output_dimension,
+                    each function should take a single input with shape [N, input_dim]
+        plot_flag - True to plot dataset
     """
-    N2 = int(frac * N / 2)  # number of observations in mode 2 (high noise)
-    # generate input observations X
-    #     X = rnd.randn(N, 1) * 2 - 1 # X values
-    # X = np.random.rand(N, 1) * 2 - 1  # X values
-    X = np.linspace(-1.0, 1.0, N)[:, None]
+    if input_dim == 1:
+        X = np.sort(np.random.rand(N, input_dim) * (high_lim - low_lim) +
+                    low_lim,
+                    axis=0)
+    elif input_dim == 2:
+        # TODO: higher order root depending on input_dim
+        sqrtN = int(np.sqrt(N))
+        X = np.sort(np.random.rand(sqrtN, input_dim) * (high_lim - low_lim) +
+                    low_lim,
+                    axis=0)
+        x, y = np.meshgrid(X[:, 0], X[:, 1])
+        X = np.column_stack([x.flat,
+                             y.flat])  # Need an (N, 2) array - N (x, y) pairs.
 
-    # generate target observations Y
-    # Y = np.zeros([N, 1])
-    Y = func(X)  # + 3
-    Y[X > 0] += low_noise_var * np.random.randn((Y[X > 0]).shape[0])
-    Y[X < 0] += high_noise_var * np.random.randn(
-        (Y[X < 0]).shape[0])  # add noise to subset of target observations Y
-    #     Y[N2:-N2] += low_noise_var * rnd.randn(N-2*N2,1)
-    #     Y[-N2:] += high_noise_var  * rnd.randn(N2,1) # add noise to subset of target observations Y
-    #     Y[:N2] += high_noise_var* rnd.randn(N2,1) # add noise to subset of target observations Y
+    # Calculate uncorrupted output using funcs_list
+    Y = np.stack([f(X).flatten() for f in func_list], axis=1)
 
-    # Bernoulli indicator variable, 0 = low noise, 1 = high noise
-    a = np.zeros([N, 1])
-    a[X < 0] = 1
-    # a[-N2:] = 1
-    # a[:N2] = 1
+    # Generate alpha (separation) from a mixture of gaussians
+    num_mixtures = 2
+    means = np.random.rand(num_mixtures, input_dim) * 2 - 1
+    covs = np.random.rand(num_mixtures, input_dim, input_dim) * 0.5
+    covs = [np.diag(np.diag(covs[i, :, :])) for i in range(num_mixtures)]
+    a = sum([
+        multivariate_normal.pdf(X, mean=mean, cov=cov)
+        for mean, cov in zip(means, covs)
+    ]).reshape(N, 1)
+    a = np.interp(a, (a.min(), a.max()), (0, +1))  # rescale to range 0, 1
+
+    # Add Gaussian noise where \alpha>0.5
+    aa = np.tile(a, Y.shape[1])  # broadcast a along output dimension
+    Y = np.where(aa > 0.5, Y + high_noise_var * np.random.randn(*Y.shape),
+                 Y + low_noise_var * np.random.randn(*Y.shape))
 
     if plot_flag is True:
-        plot_data(X, Y, a, N2, func)
+        if input_dim == 1 and output_dim == 1:
+            plot_data_1d(X, Y, a, func)
+        elif input_dim == 2 and output_dim == 1:
+            plot_contourf(x,
+                          y,
+                          a.reshape(sqrtN, sqrtN),
+                          contour=[0.5],
+                          title='alpha')
+            plot_contourf(x,
+                          y,
+                          Y.reshape(x.shape),
+                          a.reshape(sqrtN, sqrtN),
+                          contour=[0.5],
+                          title='y - noisy')
+        elif input_dim == 2 and output_dim == 2:
+            plot_contourf(x,
+                          y,
+                          a.reshape(sqrtN, sqrtN),
+                          contour=[0.5],
+                          title='alpha')
+            plot_contourf(x,
+                          y,
+                          Y[:, 0].reshape(x.shape),
+                          a.reshape(sqrtN, sqrtN),
+                          contour=[0.5],
+                          title='$y_1$ - noisy')
+            plot_contourf(x,
+                          y,
+                          Y[:, 1].reshape(x.shape),
+                          a.reshape(sqrtN, sqrtN),
+                          contour=[0.5],
+                          title='$y_2$ - noisy')
 
     return X, Y, a
-
-
-def plot_data(X, Y, a, N2, func, title=None):
-    plt.figure(figsize=(12, 4))
-    plt.plot(X, Y, 'x', color='k', alpha=0.4, label="Observations")
-
-    #     plt.fill_between(X[:N2, 0], -1.8, 1.8, color='c', alpha=0.2, lw=1.5)
-    plt.fill_between(X[a == 0],
-                     -1.8,
-                     1.8,
-                     color='m',
-                     alpha=0.2,
-                     lw=1.5,
-                     label='Mode 1 (low noise)')
-    plt.fill_between(X[-N2:, 0],
-                     -1.8,
-                     1.8,
-                     color='c',
-                     alpha=0.2,
-                     lw=1.5,
-                     label='Mode 2 (high noise)')
-    #     Xt = np.linspace(-1.1, 1.1, 1000)[:, None]
-    Xt = np.linspace(-1.1, 1.1, 1000)[:, None]
-    Yt = func(Xt)
-    plt.plot(Xt, Yt, c='k')  # , label="Underlying function"
-    plt.xlabel("$(\mathbf{s}_{t-1}, \mathbf{a}_{t-1})$", fontsize=20)
-    plt.ylabel("$\mathbf{s}_t$", fontsize=20)
-    plt.tick_params(labelsize=20)
-    plt.ylim(-2.1, 2.1)
-    plt.legend(loc='lower right', fontsize=15)
-    plt.title(title)
-    plt.show()

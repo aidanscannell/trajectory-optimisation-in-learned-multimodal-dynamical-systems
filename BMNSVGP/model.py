@@ -17,19 +17,17 @@ import numpy as np
 import numpy.random as rnd
 import tensorflow as tf
 import tensorflow_probability as tfp
-from gpflow import (Minibatch, autoflow, features, kullback_leiblers,
-                    params_as_tensors, settings, transforms)
+from gpflow import (autoflow, features, kullback_leiblers, params_as_tensors,
+                    settings, transforms)
 from gpflow.conditionals import Kuu, conditional
 # from gpflow.decors import autoflow, params_as_tensors
 from gpflow.mean_functions import Zero
-from gpflow.models.model import GPModel, Model
+from gpflow.models.model import Model
 from gpflow.multioutput import features as mf
 from gpflow.multioutput import kernels as mk
 from gpflow.params import DataHolder, Minibatch, Parameter, ParamList
 
 from likelihood import BernoulliGaussian, inv_probit
-
-# from gpflow.quadrature import ndiagquad
 
 float_type = gpflow.settings.float_type
 
@@ -38,8 +36,16 @@ class BMNSVGP(Model):
     """ Bimodal Noise Sparse Variational Gaussian Process Class. """
     def __init__(self, X, Y, noise_vars, minibatch_size=None):
         """
-        - X is a data matrix, size N x D
-        - Y is a data matrix, size N x P
+
+
+        Parameters
+        ----------
+            X: Inputs data matrix, size [num_data x input_dim]
+            Y: Outputs data matrix, size [num_data x output_dim]
+            noise_vars: List of covariance matrices, one for each mode of the
+                        likelihood. Each mode is a Gaussian
+                        mode of size [1, input_dim x input_dim]
+            minibatch: Size of minibatch for stochastic variational inference.
         """
         Model.__init__(self, name="BMNSVGP")
         assert X.shape[0] == Y.shape[0]
@@ -49,15 +55,14 @@ class BMNSVGP(Model):
             self.X = Minibatch(X, batch_size=minibatch_size, seed=0)
             self.Y = Minibatch(Y, batch_size=minibatch_size, seed=0)
         else:
-            self.X = Dataholder(X)
-            self.Y = Dataholder(Y)
+            self.X = DataHolder(X)
+            self.Y = DataHolder(Y)
 
         self.num_data = X.shape[0]
         self.input_dim = X.shape[1]
         self.output_dim = Y.shape[1]
         self.whiten = True
         # self.whiten = False
-        #         num_inducing = len(self.feature)
 
         # init separation GP
         self.mean_function_h = Zero(output_dim=1)
@@ -69,7 +74,6 @@ class BMNSVGP(Model):
         self.feature_h = features.inducingpoint_wrapper(feat, Z)
         self.feature_h.trainable = False
         # init variational parameters
-        # TODO: auto select number of inducing points
         q_mu_h = np.zeros((M, 1)) + rnd.randn(M, 1)
         q_sqrt_h = np.array(
             [10 * np.eye(M, dtype=settings.float_type) for _ in range(1)])
@@ -230,7 +234,15 @@ class BMNSVGP(Model):
     @params_as_tensors
     def _build_likelihood(self):
         """
-        This gives a variational bound on the model likelihood.
+        This functions calculates the variational bound on the model likelihood,
+
+            L = \sum_{n=1}^N \E_{q(H, F, U)} [log\ p(y_n | f_n, \alpha_n) p(\alpha_n | h_n)  ] \\
+                - KL( q(U_h) || p(U_h | Z_h)) \\
+                - \sum^K_{k=1} KL( q(U_f^{(k)}) || p(U_f^{(k)} | Z_f^{(k)}))
+
+        with the variational posterior,
+
+            q(H, F, U) &= \prod_{n=1}^N p(h_n | U_h, x_n) q(U_h) p(F_n | U_f, x_n) q(U_f) \\
         """
         # Get prior KL.
         KL_h = self.build_prior_KL(self.feature_h, self.kern_h, self.q_mu_h,
@@ -262,9 +274,6 @@ class BMNSVGP(Model):
             f_means.append(f_mean)
             f_vars.append(f_var)
 
-            # TODO: multivariate_normal or normal?
-            # tfp.distributions.MultivariateNormalFullCovariance(loc=f, covariance_matrix=variance)
-            # dist_fs.append(tfp.distributions.MultivariateNormalDiag(loc=f_mean, scale_diag=f_var))
             dist_fs.append(tf.distributions.Normal(loc=f_mean, scale=f_var))
 
         # Lets calculate the variatonal expectations

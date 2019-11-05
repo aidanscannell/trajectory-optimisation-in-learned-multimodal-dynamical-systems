@@ -36,7 +36,7 @@ float_type = gpflow.settings.float_type
 
 class BMNSVGP(Model):
     """ Bimodal Noise Sparse Variational Gaussian Process Class. """
-    def __init__(self, X, Y, var_low, var_high, minibatch_size=None):
+    def __init__(self, X, Y, noise_vars, minibatch_size=None):
         """
         - X is a data matrix, size N x D
         - Y is a data matrix, size N x P
@@ -119,8 +119,8 @@ class BMNSVGP(Model):
         self.q_sqrts = ParamList(q_sqrts)
 
         # init likelihood
-        self.likelihood = BernoulliGaussian(variance_low=var_low,
-                                            variance_high=var_high)
+        self.likelihood = BernoulliGaussian(variance_low=noise_vars[0],
+                                            variance_high=noise_vars[1])
 
     def _init_variational_parameters(self,
                                      num_inducing,

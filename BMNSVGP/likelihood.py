@@ -31,6 +31,7 @@ class BernoulliGaussian(Likelihood):
                  variance_low=np.array([[0.005, 0.], [0., 0.005]]),
                  variance_high=np.array([[0.3, 0.], [0., 0.3]]),
                  invlink=inv_probit,
+                 var_trainable=True,
                  **kwargs):
         # def __init__(self, variance_low=np.array([0.005, 0.005]), variance_high=np.array([0.3, 0.3]), invlink=inv_probit, **kwargs):
         super().__init__(**kwargs)
@@ -50,8 +51,11 @@ class BernoulliGaussian(Likelihood):
         variances = [variance_low, variance_high]
         self.variances = ParamList(variances)
         self.likelihood_bern = Bernoulli()
-#         self.variance_low.trainable = False
-#         self.variance_high.trainable = False
+        self.input_dim = variance_low.shape[1]
+
+        if var_trainable is False:
+            self.variance_low.trainable = False
+            self.variance_high.trainable = False
 
     @params_as_tensors
     def predict_mean_and_var(self, Fmu, Fvar, idx):

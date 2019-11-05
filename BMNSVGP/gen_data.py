@@ -54,8 +54,13 @@ def gen_data(N=600,
         high_noise_var - variance used to add iid Gaussian noise to high noise regions
         func_list - list of functions, one for each output dimension.
                     length=output_dimension,
-                    each function should take a single input with shape [N, input_dim]
+                    each function should take a single input with shape [N x input_dim]
         plot_flag - True to plot dataset
+
+    Returns
+    -------
+        X - inputs [N x input_dim]
+        Y - outputs [N x output_dim]
     """
     if input_dim == 1:
         X = np.sort(np.random.rand(N, input_dim) * (high_lim - low_lim) +

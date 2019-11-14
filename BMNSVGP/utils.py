@@ -72,91 +72,32 @@ def plot_data_1d(X, Y, a, func, title=None):
 
 
 def plot_model(m,
-               m1=False,
-               m2=False,
+               f=False,
                a=False,
                h=False,
                y=False,
-               save_name=False):
+               a_true=None,
+               y_true=False,
+               y_a=None,
+               inputs=False,
+               var=False,
+               save_name=None):
     fig = plt.figure(figsize=(12, 4))
-    pX = np.linspace(-1, 1, 100)[:, None]  # Test locations
-
-    plt.plot(m.X.value,
-             m.Y.value,
-             'x',
-             color='k',
-             label='Observations',
-             alpha=0.2)
-    if m1 or m2 or a or h:
-        #     plt.plot(m.feature_f_low.Z.value, np.zeros(m.feature_f_low.Z.value.shape), 'k|', mew=2, label='Inducing locations mode 1')
-        plt.plot(m.feature_f_low.Z.value,
-                 np.zeros(m.feature_f_low.Z.value.shape),
-                 'k|',
-                 mew=2)
-        plt.plot(m.feature_f_high.Z.value,
-                 np.zeros(m.feature_f_high.Z.value.shape),
-                 'b|',
-                 mew=2)
-    #     plt.plot(m.feature_f_high.Z.value, np.zeros(m.feature_f_high.Z.value.shape), 'b|', mew=2, label='Inducing locations mode 2')
-    #     plt.plot(m.feature_f_low.Z.value, np.zeros(m.feature_f_low.Z.value.shape), 'k|', mew=2, label='Inducing locations mode 1')
-
-    if h is True:
-        a_mu, a_var = m.predict_h(pX)  # Predict alpha values at test locations
-        plt.plot(pX, a_mu, color='olive', lw=1.5)
-        plt.fill_between(pX[:, 0], (a_mu - 2 * a_var**0.5)[:, 0],
-                         (a_mu + 2 * a_var**0.5)[:, 0],
-                         color='olive',
-                         alpha=0.4,
-                         lw=1.5,
-                         label='Separation manifold GP')
-
-    if a is True:
-        a_mu, a_var = m.predict_a(pX)  # Predict alpha values at test locations
-        plt.plot(pX, a_mu, color='olive', lw=1.5)
-        plt.fill_between(pX[:, 0], (a_mu - 2 * a_var**0.5)[:, 0],
-                         (a_mu + 2 * a_var**0.5)[:, 0],
-                         color='blue',
-                         alpha=0.4,
-                         lw=1.5,
-                         label='$\\alpha$')
-
-    if m1 is True:
-        pY_low, pYv_low = m.predict_f_high(pX)
-        #         pY_low, pYv_low = m.predict_f_low(pX)
-        line, = plt.plot(pX, pY_low, color='m', alpha=0.6, lw=1.5)
-        plt.fill_between(pX[:, 0], (pY_low - 2 * pYv_low**0.5)[:, 0],
-                         (pY_low + 2 * pYv_low**0.5)[:, 0],
-                         color='m',
-                         alpha=0.2,
-                         lw=1.5,
-                         label='Mode 1 - low noise')
-
-    if m2 is True:
-        pY_high, pYv_high = m.predict_f_low(pX)
-        #         pY_high, pYv_high = m.predict_f_high(pX)
-        line, = plt.plot(pX, pY_high, color='c', alpha=0.6, lw=1.5)
-        plt.fill_between(pX[:, 0], (pY_high - 2 * pYv_high**0.5)[:, 0],
-                         (pY_high + 2 * pYv_high**0.5)[:, 0],
-                         color='c',
-                         alpha=0.2,
-                         lw=1.5,
-                         label='Mode 2 - high noise')
-
-    if y is True:
-        pY, pYv = m.predict_y(pX)
-        line, = plt.plot(pX, pY, color='royalblue', alpha=0.6, lw=1.5)
-        plt.fill_between(pX[:, 0], (pY - 2 * pYv**0.5)[:, 0],
-                         (pY + 2 * pYv**0.5)[:, 0],
-                         color='royalblue',
-                         alpha=0.2,
-                         lw=1.5)
-
-
-#         plt.fill_between(pX[:, 0], (pY-2*pYv**0.5)[:, 0], (pY+2*pYv**0.5)[:, 0], color='royalblue', alpha=0.2, lw=1.5, label='Combined')
-
-#     pY, pYv = m.predict_y1(pX)
-#     line, = fig.plot(pX, pY, color='red', alpha=0.6, lw=1.5)
-#     fig.fill_between(pX[:, 0], (pY-2*pYv**0.5)[:, 0], (pY+2*pYv**0.5)[:, 0], color='red', alpha=0.2, lw=1.5, label='Combined2')
+    ax = fig.gca()
+    # TODO: if colours/labels not given set dynamically
+    colours = ['m', 'c']
+    labels = ['Mode 1 - Low Noise', 'Mode 2 - High Noise']
+    if m.input_dim is 1:
+        plot_model_1d(ax, m, f, a, h, y, save_name)
+    elif m.input_dim is 2:
+        # plot_model_2d(m, f, a, h, y, save_name)
+        a_true = False
+        y_true = False
+        y_a = False
+        inputs = False
+        var = False
+        plot_model_2d(m, f, a, a_true, h, y, y_true, y_a, inputs, var,
+                      save_name)
 
     fig.legend(loc='lower right', fontsize=15)
     plt.xlabel('$(\mathbf{s}_{t-1}, \mathbf{a}_{t-1})$', fontsize=30)
@@ -166,6 +107,64 @@ def plot_model(m,
     if save_name is not False:
         plt.savefig(save_name, transparent=True, bbox_inches='tight')
     plt.show()
+
+
+def plot_model_1d(ax, m, f=False, a=False, h=False, y=False, save_name=None):
+    fig = plt.figure(figsize=(12, 4))
+    ax = fig.gca()
+    pX = np.linspace(-1, 1, 100)[:, None]  # Test locations
+    # colours = ['k|', 'b|']
+
+    ax.plot(m.X.value,
+            m.Y.value,
+            'x',
+            color='k',
+            label='Observations',
+            alpha=0.2)
+    # if m1 or m2 or a or h:
+    #     for feat, c in zip(m.features[0].feat_list, colours):
+    #         plt.plot(feat.Z.value, np.zeros(feat.Z.value.shape), c, mew=2)
+
+    if h is True:
+        a_mu, a_var = m.predict_h(pX)  # Predict alpha values at test locations
+        ax.plot(pX, a_mu, color='olive', lw=1.5)
+        ax.fill_between(pX[:, 0], (a_mu - 2 * a_var**0.5)[:, 0],
+                        (a_mu + 2 * a_var**0.5)[:, 0],
+                        color='olive',
+                        alpha=0.4,
+                        lw=1.5,
+                        label='Separation manifold GP')
+
+    if a is True:
+        a_mu, a_var = m.predict_a(pX)  # Predict alpha values at test locations
+        ax.plot(pX, a_mu, color='olive', lw=1.5)
+        ax.fill_between(pX[:, 0], (a_mu - 2 * a_var**0.5)[:, 0],
+                        (a_mu + 2 * a_var**0.5)[:, 0],
+                        color='blue',
+                        alpha=0.4,
+                        lw=1.5,
+                        label='$\\alpha$')
+
+    if f is True:
+        pYs, pYvs = m.predict_f(pX)
+        #         pY_low, pYv_low = m.predict_f_low(pX)
+        for pY, pYv, colour, label in zip(pYs, pYvs, colours, labels):
+            line, = ax.plot(pX, pY, color=colour, alpha=0.6, lw=1.5)
+            ax.fill_between(pX[:, 0], (pY - 2 * pYv**0.5)[:, 0],
+                            (pY + 2 * pYv**0.5)[:, 0],
+                            color=colour,
+                            alpha=0.2,
+                            lw=1.5,
+                            label=label)
+
+    if y is True:
+        pY, pYv = m.predict_y(pX)
+        line, = ax.plot(pX, pY, color='royalblue', alpha=0.6, lw=1.5)
+        ax.fill_between(pX[:, 0], (pY - 2 * pYv**0.5)[:, 0],
+                        (pY + 2 * pYv**0.5)[:, 0],
+                        color='royalblue',
+                        alpha=0.2,
+                        lw=1.5)
 
 
 def plot_a(m, a, save_name=False):
@@ -268,17 +267,17 @@ def plot_contourf_var(x,
     plt.show()
 
 
-def plot_model2D(m,
-                 f=False,
-                 a=False,
-                 a_true=None,
-                 h=False,
-                 y=False,
-                 y_true=False,
-                 y_a=None,
-                 inputs=False,
-                 var=False,
-                 save_name=None):
+def plot_model_2d(m,
+                  f=False,
+                  a=False,
+                  a_true=None,
+                  h=False,
+                  y=False,
+                  y_true=False,
+                  y_a=None,
+                  inputs=False,
+                  var=False,
+                  save_name=None):
 
     N = int(np.sqrt(m.X.value.shape[0]))
     # low = -1; high = 1

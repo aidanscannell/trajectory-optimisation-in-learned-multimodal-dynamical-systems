@@ -36,8 +36,6 @@ class BMNSVGP(Model):
     """ Bimodal Noise Sparse Variational Gaussian Process Class. """
     def __init__(self, X, Y, noise_vars, minibatch_size=None):
         """
-
-
         Parameters
         ----------
             X: Inputs data matrix, size [num_data x input_dim]

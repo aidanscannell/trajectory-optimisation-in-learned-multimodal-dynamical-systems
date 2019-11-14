@@ -16,53 +16,61 @@ import gpflow
 import numpy as np
 import tensorflow as tf
 
-from gen_data import gen_data
-from gen_data_2d import gen_data_2d
+from gen_data import func, func1, func2, gen_data
 from model import BMNSVGP
 from utils import plot_a, plot_contourf, plot_loss, plot_model, run_adam
 
 float_type = tf.float64
 
-# generate 1D input
-# X, Y, a = gen_data(600,
-#                    frac=0.5,
-#                    low_noise_var=0.005,
-#                    high_noise_var=0.3,
-#                    plot_flag=False)
+input_dim = 2
+output_dim = 2
 
-# generate 2D input
-N = 1000  # number of training observations
-X, Y, a = gen_data_2d(N=N,
-                      num_mixtures=5,
-                      x_scale=2.,
-                      y_scale=2.,
-                      plot_flag=[1, 1, 1])
-
-X = (X - X.mean()) / X.std()
-Y = (Y - Y.mean()) / Y.std()
-
-N = X.shape[0]
-D = X.shape[1]
-F = Y.shape[1]
-
-print('before model ')
-gpflow.reset_default_graph_and_session()
+num_iters = 15000
 
 var_low = np.array([[[0.005, 0.], [0., 0.005]]])
 var_high = np.array([[[0.3, 0.], [0., 0.3]]])
+vars_list = [var_low, var_high]
 
+# generate data set
+if input_dim is 1 and output_dim is 1:
+    func_list = [func]
+elif input_dim is 2 and output_dim is 1:
+    func_list = [func1]
+elif input_dim is 2 and output_dim is 2:
+    func_list = [func1, func2]
+N = 900  # number of training observations
+
+X, Y, a = gen_data(N,
+                   input_dim,
+                   output_dim,
+                   low_lim=-2.,
+                   high_lim=2.,
+                   func_list=func_list,
+                   plot_flag=False)
+
+# standardise input
+X_ = (X - X.mean()) / X.std()
+Y_ = (Y - Y.mean()) / Y.std()
+
+gpflow.reset_default_graph_and_session()
 with gpflow.defer_build():
-    m = BMNSVGP(X, Y, var_low=var_low, var_high=var_high, minibatch_size=100)
+    m = BMNSVGP(X_, Y_, noise_vars=vars_list, minibatch_size=100)
 #     m = BMNSVGP(X, Y, var_low=0.001, var_high=0.7, minibatch_size=100)
 m.compile()
 
-print('Optimising model...')
+# plot_model(m, m1=True, y=True)
+# plot_model(m, a=True, h=True)
+# plot_model(m, f=True)
+# plot_model(m, y=True)
 
-logger = run_adam(m, maxiter=gpflow.test_util.notebook_niter(15000))
-
-print('Finished optimising model.')
-
+logger = run_adam(m, maxiter=gpflow.test_util.notebook_niter(num_iters))
 plot_loss(logger)
+
+# plot_model(m, a=True, h=True)
+# plot_model(m, f=True)
+# plot_model(m, y=True)
+# print('Finished optimising model.')
+
 # plot_model(m, m1=True, m2=True)
 # plot_a(m, a)
 # plot_model(m, a=True)

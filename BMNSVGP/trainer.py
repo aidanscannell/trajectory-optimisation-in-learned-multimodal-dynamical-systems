@@ -15,66 +15,67 @@
 import gpflow
 import numpy as np
 import tensorflow as tf
-
 from gen_data import func, func1, func2, gen_data
 from model import BMNSVGP
 from utils import plot_a, plot_contourf, plot_loss, plot_model, run_adam
 
 float_type = tf.float64
 
-input_dim = 2
-output_dim = 2
-
-num_iters = 15000
-
-var_low = np.array([[[0.005, 0.], [0., 0.005]]])
-var_high = np.array([[[0.3, 0.], [0., 0.3]]])
-vars_list = [var_low, var_high]
-
 # generate data set
-if input_dim is 1 and output_dim is 1:
-    func_list = [func]
-elif input_dim is 2 and output_dim is 1:
-    func_list = [func1]
-elif input_dim is 2 and output_dim is 2:
-    func_list = [func1, func2]
-N = 900  # number of training observations
+# input_dim = 2
+# output_dim = 2
+# if input_dim is 1 and output_dim is 1:
+#     func_list = [func]
+# elif input_dim is 2 and output_dim is 1:
+#     func_list = [func1]
+# elif input_dim is 2 and output_dim is 2:
+#     func_list = [func1, func2]
+# N = 900  # number of training observations
 
-X, Y, a = gen_data(N,
-                   input_dim,
-                   output_dim,
-                   low_lim=-2.,
-                   high_lim=2.,
-                   func_list=func_list,
-                   plot_flag=False)
+# X, Y, a = gen_data(N,
+#                    input_dim,
+#                    output_dim,
+#                    low_lim=-2.,
+#                    high_lim=2.,
+#                    func_list=func_list,
+#                    plot_flag=False)
 
-# standardise input
-X_ = (X - X.mean()) / X.std()
-Y_ = (Y - Y.mean()) / Y.std()
 
-gpflow.reset_default_graph_and_session()
-with gpflow.defer_build():
-    m = BMNSVGP(X_, Y_, noise_vars=vars_list, minibatch_size=100)
-#     m = BMNSVGP(X, Y, var_low=0.001, var_high=0.7, minibatch_size=100)
-m.compile()
+def train_model(X, Y, num_iters=15000, vars_list=None, minibatch_size=100):
+    if vars_list is None:
+        dim = Y.shape[1]
+        vars_list = [
+            np.array([0.005 * np.eye(dim)]),
+            np.array([0.3 * np.eye(dim)])
+        ]
 
-# plot_model(m, m1=True, y=True)
-# plot_model(m, a=True, h=True)
-# plot_model(m, f=True)
-# plot_model(m, y=True)
+    # standardise input
+    X_ = (X - X.mean()) / X.std()
+    Y_ = (Y - Y.mean()) / Y.std()
 
-logger = run_adam(m, maxiter=gpflow.test_util.notebook_niter(num_iters))
-plot_loss(logger)
+    gpflow.reset_default_graph_and_session()
+    with gpflow.defer_build():
+        m = BMNSVGP(X_,
+                    Y_,
+                    noise_vars=vars_list,
+                    minibatch_size=minibatch_size)
+    m.compile()
 
-# plot_model(m, a=True, h=True)
-# plot_model(m, f=True)
-# plot_model(m, y=True)
-# print('Finished optimising model.')
+    logger = run_adam(m, maxiter=gpflow.test_util.notebook_niter(num_iters))
+    return m, logger
 
-# plot_model(m, m1=True, m2=True)
-# plot_a(m, a)
-# plot_model(m, a=True)
-# plot_model(m, y=True)
+
+# plot_model_2d_uav(m, X, f=False, a=True, h=False, y=False, y_a=None, var=False)
+# plot_model_2d_uav(m, X, f=True , a=False, h=False, y=False, y_a=None, var=False)
 
 # saver = gpflow.saver.Saver()
 # saver.save('../saved_models/bmnsvgp', m)
+
+if __name__ == "__main__":
+    data = np.load('../data/uav_data1.npz')
+    X = data['x']
+    Y = data['y']
+
+    m, logger = train_model(X, Y)
+
+    plot_loss(logger)

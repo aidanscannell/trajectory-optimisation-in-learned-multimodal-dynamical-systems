@@ -48,7 +48,7 @@ def plot_loss(logger):
     plt.plot(-np.array(logger.logf))
     plt.xlabel('iteration (x10)')
     plt.ylabel('ELBO')
-    plt.show()
+    plt.show(block=True)
 
 
 def plot_data_1d(X, Y, a, func, title=None):
@@ -72,6 +72,7 @@ def plot_data_1d(X, Y, a, func, title=None):
 
 
 def plot_model(m,
+               X,
                f=False,
                a=False,
                h=False,
@@ -79,7 +80,6 @@ def plot_model(m,
                a_true=None,
                y_true=False,
                y_a=None,
-               inputs=False,
                var=False,
                save_name=None):
     fig = plt.figure(figsize=(12, 4))
@@ -91,13 +91,20 @@ def plot_model(m,
         plot_model_1d(ax, m, f, a, h, y, save_name)
     elif m.input_dim is 2:
         # plot_model_2d(m, f, a, h, y, save_name)
-        a_true = False
         y_true = False
         y_a = False
-        inputs = False
         var = False
-        plot_model_2d(m, f, a, a_true, h, y, y_true, y_a, inputs, var,
-                      save_name)
+        plot_model_2d(m,
+                      X,
+                      f=f,
+                      a=a,
+                      a_true=a_true,
+                      h=h,
+                      y=y,
+                      y_true=y_true,
+                      y_a=y_a,
+                      var=var,
+                      save_name=save_name)
 
     fig.legend(loc='lower right', fontsize=15)
     plt.xlabel('$(\mathbf{s}_{t-1}, \mathbf{a}_{t-1})$', fontsize=30)
@@ -202,7 +209,7 @@ def plot_a(m, a, save_name=False):
     plt.show()
 
 
-def plot_contour(ax, x, y, z, a=None, contour=None, inputs=False):
+def plot_contour(ax, x, y, z, a=None, contour=None):
     # surf = ax.contourf(x, y, z, cmap=cm.cool, linewidth=0, antialiased=False)
     surf = ax.contourf(x,
                        y,
@@ -215,30 +222,23 @@ def plot_contour(ax, x, y, z, a=None, contour=None, inputs=False):
         cont = ax.contour(x, y, a, levels=contour)
     if contour is not None and a is None:
         cont = ax.contour(x, y, z, levels=contour)
-    if inputs is True:
-        # plt.plot(x.flatten(), y.flatten(), 'xk')
-        plt.plot(X_[:, 0], X_[:, 1], 'xk')
+    # if inputs is True:
+    #     # plt.plot(x.flatten(), y.flatten(), 'xk')
+    #     plt.plot(X_[:, 0], X_[:, 1], 'xk')
     plt.xlim(-2, 2)
     plt.ylim(-2, 2)
     return surf, cont
 
 
-def plot_contourf(x,
-                  y,
-                  z,
-                  a=None,
-                  contour=None,
-                  title=None,
-                  inputs=False,
-                  save_name=None):
+def plot_contourf(x, y, z, a=None, contour=None, title=None, save_name=None):
     fig = plt.figure(figsize=(12, 4))
     ax = fig.gca()
-    surf, cont = plot_contour(ax, x, y, z, a, contour, inputs=inputs)
+    surf, cont = plot_contour(ax, x, y, z, a, contour)
     fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.title(title)
     if save_name is not None:
         plt.savefig(save_name, transparent=True, bbox_inches='tight')
-    plt.show()
+    plt.show(block=True)
 
 
 def plot_contourf_var(x,
@@ -248,16 +248,15 @@ def plot_contourf_var(x,
                       a=None,
                       contour=None,
                       title=None,
-                      inputs=False,
                       save_name=None):
     # fig, axs = plt.subplot(2, sharex=True, sharey=True)
     fig, axs = plt.subplots(1, 2, figsize=(24, 4))
     plt.subplots_adjust(wspace=0, hspace=0)
 
-    surf_mu, cont_mu = plot_contour(axs[0], x, y, z, a, contour, inputs)
+    surf_mu, cont_mu = plot_contour(axs[0], x, y, z, a, contour)
     cbar = fig.colorbar(surf_mu, shrink=0.5, aspect=5, ax=axs[0])
     cbar.set_label('mean')
-    surf_var, cont_var = plot_contour(axs[1], x, y, z_var, a, contour, inputs)
+    surf_var, cont_var = plot_contour(axs[1], x, y, z_var, a, contour)
     cbar = fig.colorbar(surf_var, shrink=0.5, aspect=5, ax=axs[1])
     cbar.set_label('variance')
 
@@ -268,6 +267,7 @@ def plot_contourf_var(x,
 
 
 def plot_model_2d(m,
+                  X,
                   f=False,
                   a=False,
                   a_true=None,
@@ -275,23 +275,37 @@ def plot_model_2d(m,
                   y=False,
                   y_true=False,
                   y_a=None,
-                  inputs=False,
                   var=False,
                   save_name=None):
 
-    N = int(np.sqrt(m.X.value.shape[0]))
+    # N = int(np.sqrt(m.X.value.shape[0]))
     # low = -1; high = 1
     # low = -1.5; high = 1.5
-    low = -2
-    high = 2
-    xx, yy = np.mgrid[low:high:N * 1j, low:high:N * 1j]
+    # low = -2
+    # high = 2
+    # xx, yy = np.mgrid[low:high:N * 1j, low:high:N * 1j]
+    # # Need an (N, 2) array of (x, y) pairs.
+    # xy = np.column_stack([xx.flat, yy.flat])
+    N = 100
+
+    x1_high = m.X.value[:, 0].max()
+    x2_high = m.X.value[:, 1].max()
+    x1_low = m.X.value[:, 0].min()
+    x2_low = m.X.value[:, 1].min()
+
+    xx, yy = np.mgrid[x1_low:x1_high:N * 1j, x2_low:x2_high:N * 1j]
     # Need an (N, 2) array of (x, y) pairs.
     xy = np.column_stack([xx.flat, yy.flat])
 
-    mx = m.X.value[:, 0].reshape(N, N)
-    my = m.X.value[:, 1].reshape(N, N)
-    mz1 = m.Y.value[:, 0].reshape(N, N)
-    mz2 = m.Y.value[:, 1].reshape(N, N)
+    # rescale inputs
+    xx = xx * X.std() + X.mean()
+    yy = yy * X.std() + X.mean()
+
+    if a_true is not None or y_true is True:
+        mx = m.X.value[:, 0].reshape(N, N)
+        my = m.X.value[:, 1].reshape(N, N)
+        mz1 = m.Y.value[:, 0].reshape(N, N)
+        mz2 = m.Y.value[:, 1].reshape(N, N)
 
     if a is True:
         a_mu, a_var = m.predict_a(xy)  # Predict alpha values at test locations
@@ -303,9 +317,8 @@ def plot_model_2d(m,
                           a_var.reshape(xx.shape),
                           contour=[0.5],
                           title='predicted alpha',
-                          inputs=inputs,
                           save_name="img/learned_alpha" + save_name + ".pdf")
-        # plot_contourf_var(xx, yy, 1-a_mu.reshape(xx.shape), a_var.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted', inputs=inputs)
+        # plot_contourf_var(xx, yy, 1-a_mu.reshape(xx.shape), a_var.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
 
     if a_true is not None:
         plot_contourf(mx,
@@ -313,7 +326,6 @@ def plot_model_2d(m,
                       a_true.reshape(xx.shape),
                       contour=[0.5],
                       title='Original alpha',
-                      inputs=inputs,
                       save_name="img/original_alpha" + save_name + ".pdf")
 
     if f is True:
@@ -324,47 +336,41 @@ def plot_model_2d(m,
                               yy,
                               f_mu[:, 0].reshape(xx.shape),
                               f_var[:, 0].reshape(xx.shape),
-                              title=('predicted $f_%i$ dim 1' % i),
-                              inputs=inputs)
+                              title=('predicted $f_%i$ dim 1' % i))
             plot_contourf_var(xx,
                               yy,
                               f_mu[:, 1].reshape(xx.shape),
                               f_var[:, 1].reshape(xx.shape),
-                              title=('predicted $f_%i$ dim 2' % i),
-                              inputs=inputs)
+                              title=('predicted $f_%i$ dim 2' % i))
 
     if y is True:
         y_mu, y_var = m.predict_y(xy)  # Predict alpha values at test locations
         print(y_mu.shape)
         if y_a is not None:
             # plot_contourf(xx, yy, y_mu.reshape(xx.shape), a=y_a.reshape(xx.shape), contour=[0.5], title='predicted y')
-            # plot_contourf_var(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y', inputs=inputs)
+            # plot_contourf_var(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 0].reshape(xx.shape),
                               y_var[:, 0].reshape(xx.shape),
-                              title='predicted y dim 1',
-                              inputs=inputs)
+                              title='predicted y dim 1')
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 1].reshape(xx.shape),
                               y_var[:, 1].reshape(xx.shape),
-                              title='predicted y dim 2',
-                              inputs=inputs)
+                              title='predicted y dim 2')
         else:
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 0].reshape(xx.shape),
                               y_var[:, 0].reshape(xx.shape),
-                              title='predicted y dim 1',
-                              inputs=inputs)
+                              title='predicted y dim 1')
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 1].reshape(xx.shape),
                               y_var[:, 1].reshape(xx.shape),
-                              title='predicted y dim 2',
-                              inputs=inputs)
-            # plot_contourf(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y', inputs=inputs)
+                              title='predicted y dim 2')
+            # plot_contourf(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')
             # TODO: how to plot variance of GPs??
 
     if y_true is True:
@@ -374,18 +380,16 @@ def plot_model_2d(m,
                           mz1,
                           a=y_a.reshape(mx.shape),
                           contour=[0.5],
-                          title='original y dim 1',
-                          inputs=inputs)
+                          title='original y dim 1')
             plot_contourf(mx,
                           my,
                           mz2,
                           a=y_a.reshape(mx.shape),
                           contour=[0.5],
-                          title='original y dim 2',
-                          inputs=inputs)
+                          title='original y dim 2')
         else:
-            plot_contourf(mx, my, mz1, title='original y dim 1', inputs=inputs)
-            plot_contourf(mx, my, mz2, title='original y dim 2', inputs=inputs)
+            plot_contourf(mx, my, mz1, title='original y dim 1')
+            plot_contourf(mx, my, mz2, title='original y dim 2')
 
     if var is True:
         lik_var, f_var = m.predict_vars(xy)
@@ -393,11 +397,98 @@ def plot_model_2d(m,
                           yy,
                           lik_var.reshape(xx.shape),
                           f_var.reshape(xx.shape),
-                          title='noise variance vs GP covariance',
-                          inputs=inputs)
+                          title='noise variance vs GP covariance')
 
 
 # plot_model2D(m, a=True, a_true=a, y=True, y_true=True, y_a=a)
 # plot_model2D(m, a=True, a_true=a)
 # plot_model2D(m, f=True, y_true=True, y_a=a)
 # plot_model2D(m, f=True)
+
+
+def plot_model_2d_uav(m,
+                      X,
+                      f=False,
+                      a=False,
+                      h=False,
+                      y=False,
+                      y_a=None,
+                      var=False):
+    N = 100
+    x1_high = m.X.value[:, 0].max()
+    x2_high = m.X.value[:, 1].max()
+    x1_low = m.X.value[:, 0].min()
+    x2_low = m.X.value[:, 1].min()
+
+    xx, yy = np.mgrid[x1_low:x1_high:N * 1j, x2_low:x2_high:N * 1j]
+    # Need an (N, 2) array of (x, y) pairs.
+    xy = np.column_stack([xx.flat, yy.flat])
+
+    # rescale inputs
+    xx = xx * X.std() + X.mean()
+    yy = yy * X.std() + X.mean()
+
+    if a is True:
+        a_mu, a_var = m.predict_a(xy)  # Predict alpha values at test locations
+        # plot_contourf(xx, yy, a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha')
+        # plot_contourf(xx, yy, 1-a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
+        plot_contourf_var(xx,
+                          yy,
+                          a_mu.reshape(xx.shape),
+                          a_var.reshape(xx.shape),
+                          contour=[0.5],
+                          title='predicted alpha')
+        # plot_contourf_var(xx, yy, 1-a_mu.reshape(xx.shape), a_var.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
+
+    if f is True:
+        f_mus, f_vars = m.predict_f(
+            xy)  # Predict alpha values at test locations
+        for i, (f_mu, f_var) in enumerate(zip(f_mus, f_vars)):
+            plot_contourf_var(xx,
+                              yy,
+                              f_mu[:, 0].reshape(xx.shape),
+                              f_var[:, 0].reshape(xx.shape),
+                              title=('predicted $f_%i$ dim 1' % i))
+            plot_contourf_var(xx,
+                              yy,
+                              f_mu[:, 1].reshape(xx.shape),
+                              f_var[:, 1].reshape(xx.shape),
+                              title=('predicted $f_%i$ dim 2' % i))
+
+    if y is True:
+        y_mu, y_var = m.predict_y(xy)  # Predict alpha values at test locations
+        print(y_mu.shape)
+        if y_a is not None:
+            # plot_contourf(xx, yy, y_mu.reshape(xx.shape), a=y_a.reshape(xx.shape), contour=[0.5], title='predicted y')
+            # plot_contourf_var(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 0].reshape(xx.shape),
+                              y_var[:, 0].reshape(xx.shape),
+                              title='predicted y dim 1')
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 1].reshape(xx.shape),
+                              y_var[:, 1].reshape(xx.shape),
+                              title='predicted y dim 2')
+        else:
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 0].reshape(xx.shape),
+                              y_var[:, 0].reshape(xx.shape),
+                              title='predicted y dim 1')
+            plot_contourf_var(xx,
+                              yy,
+                              y_mu[:, 1].reshape(xx.shape),
+                              y_var[:, 1].reshape(xx.shape),
+                              title='predicted y dim 2')
+            # plot_contourf(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')
+            # TODO: how to plot variance of GPs??
+
+    if var is True:
+        lik_var, f_var = m.predict_vars(xy)
+        plot_contourf_var(xx,
+                          yy,
+                          lik_var.reshape(xx.shape),
+                          f_var.reshape(xx.shape),
+                          title='noise variance vs GP covariance')

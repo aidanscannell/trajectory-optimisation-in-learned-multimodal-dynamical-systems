@@ -26,7 +26,6 @@ from gpflow.models.model import Model
 from gpflow.multioutput import features as mf
 from gpflow.multioutput import kernels as mk
 from gpflow.params import DataHolder, Minibatch, Parameter, ParamList
-
 from likelihood import BernoulliGaussian, inv_probit
 
 float_type = gpflow.settings.float_type
@@ -250,7 +249,7 @@ class BMNSVGP(Model):
         h_mean, h_var = self._build_predict_h(self.X,
                                               full_cov=False,
                                               full_output_cov=False)
-        dist_h = tf.distributions.Normal(loc=h_mean, scale=h_var)
+        dist_h = tfp.distributions.Normal(loc=h_mean, scale=h_var)
 
         KL_f = 0
         f_means, f_vars, dist_fs = [], [], []
@@ -272,7 +271,7 @@ class BMNSVGP(Model):
             f_means.append(f_mean)
             f_vars.append(f_var)
 
-            dist_fs.append(tf.distributions.Normal(loc=f_mean, scale=f_var))
+            dist_fs.append(tfp.distributions.Normal(loc=f_mean, scale=f_var))
 
         # Lets calculate the variatonal expectations
         var_exp_h = self._sample_e_h(dist_h, f_means, num_samples=10)

@@ -92,3 +92,5 @@ notebooks/superseeded/
 # Sphinx documentation
 docs/_build/    
 docs/build/    
+
+*/superseeded/

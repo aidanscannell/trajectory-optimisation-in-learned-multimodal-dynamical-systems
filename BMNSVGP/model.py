@@ -26,6 +26,9 @@ from gpflow.models.model import Model
 from gpflow.multioutput import features as mf
 from gpflow.multioutput import kernels as mk
 from gpflow.params import DataHolder, Minibatch, Parameter, ParamList
+
+from derivative_kernel import SquaredExponentialDerivative
+# from derivative_kernel import SquaredExponential
 from likelihood import BernoulliGaussian, inv_probit
 
 float_type = gpflow.settings.float_type
@@ -89,7 +92,9 @@ class BMNSVGP(Model):
 
             # Create list of kernels for each output
             kern_list = [
-                gpflow.kernels.RBF(self.input_dim, ARD=True)
+                SquaredExponentialDerivative(self.input_dim, ARD=True)
+                # SquaredExponential(self.input_dim, ARD=True)
+                # gpflow.kernels.RBF(self.input_dim, ARD=True)
                 for _ in range(self.output_dim)
             ]
             # Create multioutput kernel from kernel list

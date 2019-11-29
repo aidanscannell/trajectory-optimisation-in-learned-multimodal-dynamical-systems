@@ -225,8 +225,8 @@ def plot_contour(ax, x, y, z, a=None, contour=None):
     # if inputs is True:
     #     # plt.plot(x.flatten(), y.flatten(), 'xk')
     #     plt.plot(X_[:, 0], X_[:, 1], 'xk')
-    plt.xlim(-2, 2)
-    plt.ylim(-2, 2)
+    # plt.xlim(-2, 2)
+    # plt.ylim(-2, 2)
     return surf, cont
 
 
@@ -246,6 +246,7 @@ def plot_contourf_var(x,
                       z,
                       z_var,
                       a=None,
+                      a_true=None,
                       contour=None,
                       title=None,
                       save_name=None):
@@ -259,6 +260,10 @@ def plot_contourf_var(x,
     surf_var, cont_var = plot_contour(axs[1], x, y, z_var, a, contour)
     cbar = fig.colorbar(surf_var, shrink=0.5, aspect=5, ax=axs[1])
     cbar.set_label('variance')
+
+    if a_true is not None:
+        axs[0].plot(a_true[0], a_true[1])
+        axs[1].plot(a_true[0], a_true[1])
 
     plt.suptitle(title)
     if save_name is not None:
@@ -345,7 +350,6 @@ def plot_model_2d(m,
 
     if y is True:
         y_mu, y_var = m.predict_y(xy)  # Predict alpha values at test locations
-        print(y_mu.shape)
         if y_a is not None:
             # plot_contourf(xx, yy, y_mu.reshape(xx.shape), a=y_a.reshape(xx.shape), contour=[0.5], title='predicted y')
             # plot_contourf_var(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')
@@ -410,6 +414,7 @@ def plot_model_2d_uav(m,
                       X,
                       f=False,
                       a=False,
+                      a_true=None,
                       h=False,
                       y=False,
                       y_a=None,
@@ -427,16 +432,21 @@ def plot_model_2d_uav(m,
     # rescale inputs
     xx = xx * X.std() + X.mean()
     yy = yy * X.std() + X.mean()
+    Y = m.Y.value
 
     if a is True:
         a_mu, a_var = m.predict_a(xy)  # Predict alpha values at test locations
         # plot_contourf(xx, yy, a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha')
         # plot_contourf(xx, yy, 1-a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
+        a_mu = a_mu * Y.std() + Y.mean()
+        a_var = a_var * Y.std() + Y.mean()
         plot_contourf_var(xx,
                           yy,
                           a_mu.reshape(xx.shape),
                           a_var.reshape(xx.shape),
+                          a_true=a_true,
                           contour=[0.5],
+                          save_name='alpha_quadcopter.pdf',
                           title='predicted alpha')
         # plot_contourf_var(xx, yy, 1-a_mu.reshape(xx.shape), a_var.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
 
@@ -457,7 +467,6 @@ def plot_model_2d_uav(m,
 
     if y is True:
         y_mu, y_var = m.predict_y(xy)  # Predict alpha values at test locations
-        print(y_mu.shape)
         if y_a is not None:
             # plot_contourf(xx, yy, y_mu.reshape(xx.shape), a=y_a.reshape(xx.shape), contour=[0.5], title='predicted y')
             # plot_contourf_var(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')

@@ -66,7 +66,8 @@ class BMNSVGP(Model):
 
         # init separation GP
         self.mean_function_h = Zero(output_dim=1)
-        self.kern_h = gpflow.kernels.RBF(input_dim=self.input_dim, ARD=True)
+        # self.kern_h = gpflow.kernels.RBF(input_dim=self.input_dim, ARD=True)
+        self.kern_h = SquaredExponentialDerivative(self.input_dim, ARD=True)
         feat = None
         M = 50
         idx = np.random.choice(range(self.num_data), size=M, replace=False)
@@ -92,9 +93,9 @@ class BMNSVGP(Model):
 
             # Create list of kernels for each output
             kern_list = [
-                SquaredExponentialDerivative(self.input_dim, ARD=True)
+                # SquaredExponentialDerivative(self.input_dim, ARD=True)
                 # SquaredExponential(self.input_dim, ARD=True)
-                # gpflow.kernels.RBF(self.input_dim, ARD=True)
+                gpflow.kernels.RBF(self.input_dim, ARD=True)
                 for _ in range(self.output_dim)
             ]
             # Create multioutput kernel from kernel list

@@ -12,20 +12,24 @@ for dir, _, _ in os.walk(start_dir):
 
 print(files)
 for file in files:
-    print('as')
+    print(file)
+    print("file")
     data = np.load(file)
     if 'X' in locals():
-        print(X.shape)
-        print(data['x'].shape)
         X = np.vstack([X, data['x']])
         Y = np.vstack([Y, data['y']])
     else:
         print('hrere')
         X = data['x']
         Y = data['y']
-        # cwd = os.getcwd()
+    print(X.shape)
+    print(data['x'].shape)
+    # cwd = os.getcwd()
 
-np.savez('model_inputs_combind.npz', x=X, y=Y)
+np.savez(
+    '/Users/aidanscannell/Developer/python-projects/BMNSVGP/data/npz/model_inputs_combined.npz',
+    x=X,
+    y=Y)
 # # folder_name = '../csv/26nov/1'
 # folder_name = cwd
 # print(folder_name)

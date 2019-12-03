@@ -55,7 +55,7 @@ def process_data(current_working_dir,
         p_data_trial, model_input_trial, model_output_trial = process_trial(
             vicon_data, tello_data, trial, int(start_idxs[trial]))
         p_data.append(p_data_trial)
-        if trial == 0:
+        if 'model_inputs' not in locals():
             model_input = model_input_trial
             model_output = model_output_trial
         else:
@@ -200,10 +200,15 @@ def calc_error(x_vicon_at_test_points, y_vicon_at_test_points, dx_tello,
     """ Calculate dx and dy at each test point """
     dx = np.zeros(len(x_vicon_at_test_points))
     dy = np.zeros(len(y_vicon_at_test_points))
+    # for i in range(1, dx.shape[0] - 1):
+    # dx[i] = x_vicon_at_test_points[i] - x_vicon_at_test_points[
+    #     i - 1] - dx_tello[i - 1]
+    # dy[i] = y_vicon_at_test_points[i] - y_vicon_at_test_points[
+    #     i - 1] - dy_tello[i - 1]
     for i in range(1, dx.shape[0] - 1):
-        dx[i] = x_vicon_at_test_points[i] - x_vicon_at_test_points[
+        dx[i - 1] = x_vicon_at_test_points[i] - x_vicon_at_test_points[
             i - 1] - dx_tello[i - 1]
-        dy[i] = y_vicon_at_test_points[i] - y_vicon_at_test_points[
+        dy[i - 1] = y_vicon_at_test_points[i] - y_vicon_at_test_points[
             i - 1] - dy_tello[i - 1]
     return dx, dy
 
@@ -314,10 +319,11 @@ if __name__ == "__main__":
         1] + "/model_inputs.npz"
     # folder_name = cwd_split[0] + "/npz/" + cwd_split[1] + "/start_idxs.npz"
     print(folder_name)
-    process_data(cwd,
-                 t_cut=50,
-                 start_idxs_filename=start_idxs_filename,
-                 model_inputs_filename=model_inputs_filename,
-                 find_start_idx=True,
-                 plot_all_trials_quiver=True,
-                 plot_each_trial=True)
+    process_data(
+        cwd,
+        t_cut=50,
+        start_idxs_filename=start_idxs_filename,
+        model_inputs_filename=model_inputs_filename,
+        # find_start_idx=True,
+        plot_all_trials_quiver=True,
+        plot_each_trial=True)

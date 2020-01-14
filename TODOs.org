@@ -1,0 +1,25 @@
+* BMNSVGP
+:PROPERTIES:
+:DESCRIPTION: TODOs for BMNSVGP project
+:END:
+** TODO Auto select number of inducing points
+ 
+  <2019-11-05 Tue>
+  [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/model.py::M%20=%2050]]
+** DONE Should this be multivariate_normal or normal?
+   CLOSED: [2019-11-05 Tue 16:06]
+ 
+  <2019-11-05 Tue>
+  [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/model.py::dist_fs.append(tf.distributions.Normal(loc=f_mean,%20scale=f_var))]]
+** TODO Set the number of dynamics GPs dynamically (k instead of 2)
+ 
+  <2019-11-05 Tue>
+  [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/model.py::for%20i%20in%20range(2):]]
+** TODO How to propagate unc from a to y
+ 
+  <2019-11-05 Tue>
+  [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/model.py::a_mean,%20a_var%20=%20self.likelihood.predict_mean_and_var_a(h_mean,%20h_var)]]
+** TODO Change likelihood to handle non-diagonal noise covariance 
+ 
+  <2019-11-05 Tue>
+  [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/likelihood.py::def%20__init__(self,]]

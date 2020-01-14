@@ -36,7 +36,12 @@ float_type = gpflow.settings.float_type
 
 class BMNSVGP(Model):
     """ Bimodal Noise Sparse Variational Gaussian Process Class. """
-    def __init__(self, X, Y, noise_vars, minibatch_size=None):
+    def __init__(self,
+                 X,
+                 Y,
+                 noise_vars,
+                 minibatch_size=None,
+                 var_trainable=True):
         """
         Parameters
         ----------
@@ -50,7 +55,7 @@ class BMNSVGP(Model):
         Model.__init__(self, name="BMNSVGP")
         assert X.shape[0] == Y.shape[0]
         assert len(noise_vars) == len(Y.shape) == len(X.shape) == 2
-        assert noise_vars[0].shape == noise_vars[1].shape == (1, 2, 2)
+        # assert noise_vars[0].shape == noise_vars[1].shape == (1, 2, 2)
         if minibatch_size is not None:
             self.X = Minibatch(X, batch_size=minibatch_size, seed=0)
             self.Y = Minibatch(Y, batch_size=minibatch_size, seed=0)
@@ -58,6 +63,8 @@ class BMNSVGP(Model):
             self.X = DataHolder(X)
             self.Y = DataHolder(Y)
 
+        print("input shape: " + str(X.shape))
+        print("output shape: " + str(Y.shape))
         self.num_data = X.shape[0]
         self.input_dim = X.shape[1]
         self.output_dim = Y.shape[1]
@@ -130,7 +137,8 @@ class BMNSVGP(Model):
 
         # init likelihood
         self.likelihood = BernoulliGaussian(variance_low=noise_vars[0],
-                                            variance_high=noise_vars[1])
+                                            variance_high=noise_vars[1],
+                                            var_trainable=var_trainable)
 
     def _init_variational_parameters(self,
                                      num_inducing,

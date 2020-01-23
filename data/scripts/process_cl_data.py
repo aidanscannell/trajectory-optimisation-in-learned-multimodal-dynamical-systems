@@ -39,7 +39,7 @@ def parse_vicon_csv(folder_name=None,
     print('final')
     print(model_input.shape)
     print(model_output.shape)
-    # np.savez(model_inputs_filename, x=model_input, y=model_output)
+    np.savez(model_inputs_filename, x=model_input, y=model_output)
 
 
 def rotate_and_translate(start_pos, data_dict):
@@ -150,8 +150,9 @@ def parse_single_csv(file_name):
 
     data_dict['tello_x'] = tello_x
     data_dict['tello_y'] = tello_y
-    step = 10
-    # step = 40
+    # step = 10
+
+    step = 40
     # step = 50
     dx, dy, dz, n_steps_array, tello_zero_idx = calc_error(
         data_dict, step, tello_x, tello_y)
@@ -275,4 +276,4 @@ if __name__ == "__main__":
     print(folder_name)
     # cwd_split = re.split('loop/', cwd)
     parse_vicon_csv(folder_name,
-                    model_inputs_filename='../npz/model_data_step_1.npz')
+                    model_inputs_filename='../npz/model_data_vel.npz')

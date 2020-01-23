@@ -160,10 +160,12 @@ def parse_single_csv(file_name):
         print('different shapes...')
         diff_x = data_dict['vicon_x'][0::step].shape[0] - dx.shape[0]
         diff_y = data_dict['vicon_y'][0::step].shape[0] - dy.shape[0]
+        diff_z = data_dict['vicon_z'][0::step].shape[0] - dz.shape[0]
         print(diff_x)
         print(diff_y)
         dx = dx[:diff_x]
         dy = dy[:diff_y]
+        dz = dz[:diff_z]
         # dx = dx[-diff_x:]
         # dy = dy[-diff_y:]
         # dx = dx[:-1]
@@ -171,7 +173,7 @@ def parse_single_csv(file_name):
 
     model_input = np.stack(
         [data_dict['vicon_x'][0::step], data_dict['vicon_y'][0::step]]).T
-    model_output = np.stack([dx, dy]).T
+    model_output = np.stack([dx, dy, dz]).T
     # model_output = np.stack([dx, dy, dz]).T
     print('aidan')
     print(model_input.shape)

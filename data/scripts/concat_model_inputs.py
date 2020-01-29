@@ -27,7 +27,7 @@ for file in files:
     # cwd = os.getcwd()
 
 np.savez(
-    '/Users/aidanscannell/Developer/python-projects/BMNSVGP/data/npz/model_inputs_combined.npz',
+    '/Users/aidanscannell/Developer/python-projects/BMNSVGP/data/npz/model_inputs_combined_z.npz',
     x=X,
     y=Y)
 # # folder_name = '../csv/26nov/1'

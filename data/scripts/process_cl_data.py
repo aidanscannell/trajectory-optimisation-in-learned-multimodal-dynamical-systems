@@ -214,6 +214,25 @@ def parse_single_csv(file_name):
     # xy=(tello_x[::step][i - n_steps_array[i]],
     # tello_y[::step][i - n_steps_array[i]]))
 
+    # time = np.arange(0, drz.shape[0])
+    # print(time.shape)
+    # plt.plot(time, drz)
+    # plt.show()
+
+    x = data_dict['vicon_x'][0::step]
+    y = data_dict['vicon_y'][0::step]
+    z = dxyz
+    # z = drz
+    fig, ax2 = plt.subplots(nrows=1)
+    ax2.tricontour(x, y, z, levels=14, linewidths=0.5, colors='k')
+    cntr2 = ax2.tricontourf(x, y, z, levels=14, cmap="RdBu_r")
+    fig.colorbar(cntr2, ax=ax2)
+    ax2.plot(x, y, 'ko', ms=3)
+    ax2.set(xlim=(-2, 2), ylim=(-2, 2))
+    # ax2.set_title('tricontour (%d points)' % npts)
+    plt.subplots_adjust(hspace=0.5)
+    plt.show()
+
     # plt.scatter(
     #     tello_x[10:],
     #     tello_y[10:],

@@ -54,7 +54,7 @@ class BMNSVGP(Model):
         """
         Model.__init__(self, name="BMNSVGP")
         assert X.shape[0] == Y.shape[0]
-        assert len(noise_vars) == len(Y.shape) == len(X.shape) == 2
+        assert len(noise_vars) == len(Y.shape) == len(X.shape)
         # assert noise_vars[0].shape == noise_vars[1].shape == (1, 2, 2)
         if minibatch_size is not None:
             self.X = Minibatch(X, batch_size=minibatch_size, seed=0)

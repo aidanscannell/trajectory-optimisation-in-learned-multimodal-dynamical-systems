@@ -186,9 +186,9 @@ def parse_single_csv(file_name):
 
     data_dict['tello_x'] = tello_x
     data_dict['tello_y'] = tello_y
-    # step = 10
+    step = 10
 
-    step = 40
+    # step = 40
     # step = 50
     dx, dy, dz, n_steps_array, tello_zero_idx, dxyz, drz = calc_error(
         data_dict, step, tello_x, tello_y)
@@ -227,18 +227,19 @@ def parse_single_csv(file_name):
     #     alpha=0.6,
     #     zorder=5)
 
-    for i in range(n_steps_array.shape[0] - 1):
-        # print(i)
-        if n_steps_array[i] != 1 and i > 100:
-            n_steps = int(n_steps_array[i])
-            print(n_steps)
-            plt.scatter(data_dict['vicon_x'][::step][i - n_steps],
-                        data_dict['vicon_y'][::step][i - n_steps],
-                        marker='x',
-                        color='k')
-            plt.scatter(tello_x[::step][i - n_steps],
-                        tello_y[::step][i - n_steps],
-                        marker='x')
+    # for i in range(n_steps_array.shape[0] - 1):
+    #     # print(i)
+    #     if n_steps_array[i] != 1 and i > 100:
+    #         n_steps = int(n_steps_array[i])
+    #         print(n_steps)
+    #         plt.scatter(data_dict['vicon_x'][::step][i - n_steps],
+    #                     data_dict['vicon_y'][::step][i - n_steps],
+    #                     marker='x',
+    #                     color='k')
+    #         plt.scatter(tello_x[::step][i - n_steps],
+    #                     tello_y[::step][i - n_steps],
+    #                     marker='x')
+    # plt.show()
     # for i in range(0, tello_x.shape[0])[::step]:
 
     # plt.annotate(

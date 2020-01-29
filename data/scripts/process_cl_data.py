@@ -65,6 +65,8 @@ def calc_error(data_dict, step, tello_x, tello_y):
     dx = np.zeros(N + 1)
     dy = np.zeros(N + 1)
     dz = np.zeros(N + 1)
+    dxyz = np.zeros(N + 1)
+    drz = np.zeros(N + 1)
     n_steps_array = np.zeros(N + 1)
     # dx_sum = 0
     # dy_sum = 0
@@ -75,6 +77,14 @@ def calc_error(data_dict, step, tello_x, tello_y):
     # print(int(data_dict['vicon_x'][0] * 1000))
     n_steps = 1
     for i in range(1, tello_x.shape[0] - 1)[::step]:
+        # print('vicon_rz')
+        # print(data_dict['vicon_rz'][i])
+        # print('tello_rz')
+        # print(data_dict['tello_rz'][i])
+        diff_rz = data_dict['vicon_rz'][i] - data_dict['tello_rz'][i]
+        drz[counter] = abs(diff_rz)
+        # print('diff_rz')
+        print(diff_rz)
         if i == 1:
             print(tello_x[i])
             print(data_dict['vicon_x'][0])
@@ -102,6 +112,30 @@ def calc_error(data_dict, step, tello_x, tello_y):
                 data_dict['vicon_z'][i - step * n_steps] -
                 (data_dict['tello_z'][i] -
                  data_dict['tello_z'][i - step * n_steps])) / n_steps
+
+            dvx = (data_dict['vicon_x'][i] -
+                   data_dict['vicon_x'][i - step * n_steps]) / n_steps
+            dvy = (data_dict['vicon_y'][i] -
+                   data_dict['vicon_y'][i - step * n_steps]) / n_steps
+            dvz = (data_dict['vicon_z'][i] -
+                   data_dict['vicon_z'][i - step * n_steps]) / n_steps
+            dv = np.sqrt(dvx**2 + dvy**2 + dvz**2)
+            dtx = (data_dict['tello_x'][i] -
+                   data_dict['tello_x'][i - step * n_steps]) / n_steps
+            dty = (data_dict['tello_y'][i] -
+                   data_dict['tello_y'][i - step * n_steps]) / n_steps
+            dtz = (data_dict['tello_z'][i] -
+                   data_dict['tello_z'][i - step * n_steps]) / n_steps
+            dt = np.sqrt(dtx**2 + dty**2 + dtz**2)
+            dxyz[counter] = abs(dv - dt)
+            # dxx = dx[counter] * np.cos(-diff_rz) + dy[counter] * np.tan(
+            #     -diff_rz)
+            # dyy = dy[counter] * np.cos(-diff_rz) + dx[counter] * np.tan(
+            # -diff_rz)
+            # dxyz[counter] = np.sqrt(dx[counter]**2 + dy[counter]**2 +
+            #                         dz[counter]**2)
+            # dx[counter] = dxx
+            # dy[counter] = dyy
             # dx[counter] = data_dict['vicon_x'][i] - data_dict['vicon_x'][
             #     i - step] - (data_dict['tello_x'][i] -
             #                  data_dict['tello_x'][i - step])
@@ -123,7 +157,7 @@ def calc_error(data_dict, step, tello_x, tello_y):
         n_steps_array[counter] = int(n_steps)
         counter += 1
 
-    return dx, dy, dz, n_steps_array, tello_zero_idx
+    return dx, dy, dz, n_steps_array, tello_zero_idx, dxyz, drz
 
 
 def parse_single_csv(file_name):
@@ -156,7 +190,7 @@ def parse_single_csv(file_name):
 
     step = 40
     # step = 50
-    dx, dy, dz, n_steps_array, tello_zero_idx = calc_error(
+    dx, dy, dz, n_steps_array, tello_zero_idx, dxyz, drz = calc_error(
         data_dict, step, tello_x, tello_y)
 
     if data_dict['vicon_y'][0::step].shape != dy.shape:
@@ -169,6 +203,8 @@ def parse_single_csv(file_name):
         dx = dx[:diff_x]
         dy = dy[:diff_y]
         dz = dz[:diff_z]
+        dxyz = dxyz[:diff_z]
+        drz = drz[:diff_z]
         # dx = dx[-diff_x:]
         # dy = dy[-diff_y:]
         # dx = dx[:-1]
@@ -176,9 +212,7 @@ def parse_single_csv(file_name):
 
     model_input = np.stack(
         [data_dict['vicon_x'][0::step], data_dict['vicon_y'][0::step]]).T
-    model_output = np.stack([dx, dy, dz]).T
-    # model_output = np.stack([dx, dy, dz]).T
-    print('aidan')
+    model_output = np.stack([dx, dy, dz, dxyz]).T
     print(model_input.shape)
     print(model_output.shape)
 

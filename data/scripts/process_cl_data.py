@@ -54,8 +54,10 @@ def rotate_and_translate(start_pos, data_dict):
     rotated_tello_xyz[:, 0] += data_dict['vicon_x'][0]
     rotated_tello_xyz[:, 1] += data_dict['vicon_y'][0]
     rotated_tello_xyz[:, 2] += data_dict['vicon_z'][0]
+    data_dict['vicon_rz'] -= data_dict['vicon_rz'][0]
+    # data_dict['vicon_rz'] = -data_dict['vicon_rz']
 
-    return rotated_tello_xyz[:, 0], rotated_tello_xyz[:, 1]
+    return rotated_tello_xyz[:, 0], rotated_tello_xyz[:, 1], data_dict
 
 
 def calc_error(data_dict, step, tello_x, tello_y):
@@ -146,7 +148,7 @@ def parse_single_csv(file_name):
         start_pos = 1
     print('start position: %i' % start_pos)
 
-    tello_x, tello_y = rotate_and_translate(start_pos, data_dict)
+    tello_x, tello_y, data_dict = rotate_and_translate(start_pos, data_dict)
 
     data_dict['tello_x'] = tello_x
     data_dict['tello_y'] = tello_y

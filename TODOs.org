@@ -23,3 +23,11 @@
  
   <2019-11-05 Tue>
   [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/likelihood.py::def%20__init__(self,]]
+* TODO is this stacking the columns as expected
+ 
+ <2020-01-24 Fri>
+ [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/geodesic_func.py::vecG%20=%20G.reshape(-1,%20input_dim%20*]]
+* TODO in Geodesic we use only mean of Y from mu,var=m.predict_y(X)
+ 
+ <2020-01-24 Fri>
+ [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/geodesic_func.py][file:~/Developer/python-projects/BMNSVGP/BMNSVGP/geodesic_func.py]]

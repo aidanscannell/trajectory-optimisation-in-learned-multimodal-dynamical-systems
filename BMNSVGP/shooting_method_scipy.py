@@ -22,7 +22,7 @@ from geodesic_func import geodesic_fun
 #     return [10, 0]  # Rectangle geometry
 
 
-def compute_zprime(x, z, areafunction):
+def compute_zprime(x, z, areafunction, X, Y, kernel):
     """
     Compute the value of the vector z's derivative at a point given the value of the vector function z and the
     independent variable x. The form of this calculation is specified by the vector ODE. Return a vector for the
@@ -33,9 +33,12 @@ def compute_zprime(x, z, areafunction):
     :param areafunction: a function that takes x and gives back a 2-vec [A(x), dA(x)/dx]
     :return: 2-vec of values for z' = f(x, z)
     """
+    # print(len(args))
+    # areafunction, X, Y, kernel = args
     z_0 = np.array([z[0], z[1]])
     zprime_0 = np.array([z[2], z[3]])
-    zprime_1 = geodesic_fun(z_0, zprime_0)
+    zprime_1 = geodesic_fun(z_0, zprime_0, X, Y, kernel)
+    # zprime_1 = geodesic_fun(z_0, zprime_0)
     return [z[2], z[3], zprime_1[0, 0], zprime_1[1, 0]]
 
 

@@ -137,6 +137,7 @@ Y_partial = np.zeros(Y_partial.shape)
 mu, var = gp_predict(xy, X_partial, Y_partial, kernel)
 var = np.diag(var)
 axs = plot_mean_and_var(X, mu, var)
+plt.scatter(X_partial[:, 0], X_partial[:, 1], color='k', marker='x')
 # plt.show()
 
 setup_global_vars(X_partial, Y_partial)

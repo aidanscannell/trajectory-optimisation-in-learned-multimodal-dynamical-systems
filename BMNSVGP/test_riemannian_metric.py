@@ -142,6 +142,24 @@ axs = plot_mean_and_var(X, mu, var)
 setup_global_vars(X_partial, Y_partial)
 # # print(xy.shape)
 plot_metric = False
+plot_metric_trace = True
+# plot_metric_trace = False
+if plot_metric_trace:
+    traceG = np.zeros([xy.shape[0], 1])
+    for i in range(xy.shape[0]):
+        G, _, _ = calc_G_map(xy[i, :].reshape(1, -1), X_partial, Y_partial,
+                             kernel)
+        traceG[i] = np.trace(G)
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 4))
+    surf_x = ax.contourf(xx,
+                         yy,
+                         traceG.reshape(xx.shape),
+                         cmap=cm.coolwarm,
+                         antialiased=False)
+    plt.title('Trace of G(x)')
+    # plt.show()
+
 # TODO a and b should be in tangent space
 if plot_metric:
     aGbs = []

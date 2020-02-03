@@ -64,7 +64,7 @@ def integrate_over_domain(z_at_0,
     initial_conditions = z_at_0
     integrator.set_initial_value(initial_conditions,
                                  t=0)  # Set the initial values of z and x
-    integrator.set_f_params(areafunction)
+    # integrator.set_f_params(areafunction)
     dt = step
 
     xs, zs = [], []

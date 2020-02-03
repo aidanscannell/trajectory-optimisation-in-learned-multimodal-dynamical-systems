@@ -118,9 +118,15 @@ var = np.diag(var)
 # plt.show()
 
 # remove some data points
-mask_0 = X[:, 0] < 0.
-mask_1 = X[:, 1] > 1.4
-mask = mask_0 | mask_1
+# mask_0 = X[:, 0] < 0.
+# mask_1 = X[:, 1] > 1.4
+# mask = mask_0 | mask_1
+mask_0 = X[:, 0] < -0.5
+mask_1 = X[:, 1] < -0.4
+mask_2 = X[:, 0] > 1.5
+mask_3 = X[:, 1] > 1.2
+mask = mask_0 | mask_1 | mask_2 | mask_3
+# mask = mask_0 & mask_1 & mask_2 & mask_3
 # mask = mask_0
 X_partial = X[mask, :]
 Y_partial = Y[mask, :]

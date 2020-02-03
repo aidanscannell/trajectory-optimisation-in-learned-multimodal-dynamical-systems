@@ -1,10 +1,13 @@
 import jax.numpy as np
+from jax import jit, partial
 
 
 class DiffRBF:
     """
     Squared exponential kernel extended to have derivatives wrt inputs
     """
+
+    # @partial(jit, static_argnums=(0, 1, 2, 3, 4))
     def __init__(self, input_dim, variance, lengthscale, ARD=False):
         self.ARD = ARD
         # if not ARD:
@@ -29,9 +32,11 @@ class DiffRBF:
         # self.dimX = dimX
         # assert self.variance.size == 1
 
+    @partial(jit, static_argnums=(0, ))
     def K_of_r(self, r):
         return self.variance * np.exp(-0.5 * r**2)
 
+    @partial(jit, static_argnums=(0, ))
     def K(self, X, X2=None):
         """
         Kernel function applied on inputs X and X2.
@@ -49,6 +54,7 @@ class DiffRBF:
     #     lengthscale2inv = (np.ones((X.shape[1])) / (self.lengthscale**2))[dimX]
     #     return -1. * K * dist * lengthscale2inv
 
+    # @partial(jit, static_argnums=(0, 2))
     def dK_dX(self, X, X2, dimX):
         r = self._scaled_dist(X, X2)
         K = self.K_of_r(r)
@@ -56,6 +62,7 @@ class DiffRBF:
         lengthscale2inv = (np.ones((X.shape[1])) / (self.lengthscale**2))[dimX]
         return -1. * K * dist * lengthscale2inv
 
+    @partial(jit, static_argnums=(0, ))
     def _unscaled_dist(self, X, X2=None):
         """
         Compute the Euclidean distance between each row of X and X2, or between
@@ -79,6 +86,7 @@ class DiffRBF:
         r2 = np.clip(r2, 0, np.inf)
         return np.sqrt(r2)
 
+    @partial(jit, static_argnums=(0, ))
     def _scaled_dist(self, X, X2=None):
         if self.ARD:
             # if X2 is not None:
@@ -87,6 +95,7 @@ class DiffRBF:
         else:
             return self._unscaled_dist(X, X2) / self.lengthscale
 
+    @partial(jit, static_argnums=(0, ))
     def K_r2(self, r2):
         return self.variance * np.exp(-r2 / 2.)
 
@@ -111,11 +120,11 @@ class DiffRBF:
     #     k = k / l**2
     #     return k  # [NxD]
 
-    def d2Kd2X(self, X, X2):
-        print('using derivative d2K()')
-        k = self.K(X, X2)
-        d2k = tf.diag(self.lengthscales.parameter_tensor**2) * k
-        return d2k
+    # def d2Kd2X(self, X, X2):
+    #     print('using derivative d2K()')
+    #     k = self.K(X, X2)
+    #     d2k = tf.diag(self.lengthscales.parameter_tensor**2) * k
+    #     return d2k
 
 
 if __name__ == "__main__":

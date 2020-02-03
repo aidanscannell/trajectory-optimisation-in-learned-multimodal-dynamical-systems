@@ -79,13 +79,18 @@ def integrate_over_domain(z_at_0,
     return xs, zs
 
 
-def solve_bvp_tj(y_at_0,
-                 y_at_length,
-                 yprime_at_0_guess,
-                 areafunction,
-                 length=1,
-                 step=0.2,
-                 silent=True):
+def solve_bvp_tj(
+        y_at_0,
+        y_at_length,
+        yprime_at_0_guess,
+        areafunction,
+        integrator,
+        # X,
+        # Y,
+        # kernel,
+        length=1,
+        step=0.2,
+        silent=True):
     """
     Numerically find the value for y'(0) that gives us a propagated (integrated) solution matching most closely with
     with other known boundary condition y(L) which is proportional junction temperature.
@@ -98,7 +103,10 @@ def solve_bvp_tj(y_at_0,
     :param silent: bool indicating whether to print the progress of the integrator
     :return: the optimized estimate of y' at the left boundary point giving the most accurate integrated solution.
     """
-    integrator = ode(compute_zprime).set_integrator("dopri5")
+
+    # integrator = ode(compute_zprime).set_integrator("dopri5")
+
+    # integrator.set_f_params(areafunction, X, Y, kernel)
 
     # z_at_0 = [y_at_0, 0.5]  # Make an initial guess for yprime at x=0
 

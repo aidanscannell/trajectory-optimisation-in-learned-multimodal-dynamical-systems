@@ -1,11 +1,14 @@
-import matplotlib
+# import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
+# import numpy as np
+from jax import jacfwd
+from jax import numpy as np
 # import snips as snp
 from scipy.integrate import ode
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, minimize
 
-from geodesic_func import geodesic_fun, setup_global_vars
+from derivative_kernel_gpy import DiffRBF
+from geodesic_func import geodesic_fun
 
 # snp.prettyplot(matplotlib)
 

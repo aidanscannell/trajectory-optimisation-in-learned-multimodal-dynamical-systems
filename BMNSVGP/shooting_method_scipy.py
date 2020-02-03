@@ -126,19 +126,38 @@ def solve_bvp_tj(
         y_at_length_integrated = np.array(zs)[-1, 0:2]
 
         # Return the difference between y(L) found by numerical integrator and the true value
+        y_at_length = np.array(y_at_length)
         error = y_at_length - y_at_length_integrated
         print('Residual [y(0)-y(L)] for current y\'(0): ', error)
-        return error
+        loss = np.linalg.norm(error)
+        print("Loss: ", loss)
+        return loss
+        # return error
         # return y_at_length - y_at_length_integrated
 
-    lsq = least_squares(residuals,
-                        yprime_at_0_guess,
-                        args=(y_at_0, y_at_length),
-                        loss="soft_l1")
+    loss_jac = jacfwd(residuals, 0)
+    print('jac')
+    print(loss_jac(yprime_at_0_guess, y_at_0, y_at_length))
+    print(len(loss_jac(yprime_at_0_guess, y_at_0, y_at_length)))
+
+    yprime_at_0_guess = np.array(yprime_at_0_guess)
+    print(yprime_at_0_guess.shape)
+    lsq = minimize(
+        residuals,
+        yprime_at_0_guess,
+        args=(y_at_0, y_at_length),
+        # jac=loss_jac,
+        tol=1e-3,
+        options={'disp': True})
+    # lsq = least_squares(residuals,
+    #                     yprime_at_0_guess,
+    #                     args=(y_at_0, y_at_length),
+    #                     loss="soft_l1")
     print('lsq')
     print(lsq)
     print(lsq.x)
-    yprime_at_0_estimate = lsq.x[2]
+    # yprime_at_0_estimate = lsq.x[2]
+    yprime_at_0_estimate = lsq.x
     return yprime_at_0_estimate
 
 

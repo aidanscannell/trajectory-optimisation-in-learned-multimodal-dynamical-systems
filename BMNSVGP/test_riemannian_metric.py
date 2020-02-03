@@ -140,11 +140,16 @@ axs = plot_mean_and_var(X, mu, var)
 plt.scatter(X_partial[:, 0], X_partial[:, 1], color='k', marker='x')
 # plt.show()
 
-setup_global_vars(X_partial, Y_partial)
-# # print(xy.shape)
+# plot_metric = True
 plot_metric = False
+# calc_metric_at_point = True
+calc_metric_at_point = False
+
+calc_length = True
+# calc_length = False
 plot_metric_trace = True
 # plot_metric_trace = False
+
 if plot_metric_trace:
     traceG = np.zeros([xy.shape[0], 1])
     for i in range(xy.shape[0]):
@@ -258,3 +263,46 @@ if calc_length:
             ax.annotate(lengths[j], (s[0] + 0.4, s[1]))
 
 plt.show()
+
+# if calc_metric_at_point:
+#     x = np.array([0., -0.4]).reshape(1, -1)
+#     start = [
+#         x + np.array([0.2, 0]).reshape(1, -1),
+#         x + np.array([0., 0.2]).reshape(1, -1)
+#     ]
+#     end = [
+#         x.T + np.array([-0.2, 0]).reshape(-1, 1),
+#         x.T + np.array([0., -0.2]).reshape(-1, 1)
+#     ]
+#     # end = c + np.array([-0.2, 0]).reshape(1, -1)
+#     # end = end.T
+
+#     G, mu_j, var_j = calc_G_map(x, X_partial, Y_partial, kernel)
+#     # print(c)
+#     # print(G)
+#     print('mu_j')
+#     print(mu_j)
+#     print('mu_j^T @ mu_j')
+#     print(mu_j @ mu_j.T)
+#     print('var_j')
+#     print(var_j)
+#     print("G")
+#     print(G)
+
+#     axs = plot_mean_and_var(X, mu, var)
+#     for a, b in zip(start, end):
+#         aGb = a @ G @ b
+#         print(
+#             'aTG(x)b = %.5f for a:(%.2f, %.2f), b:(%.2f, %.2f), x:(%.2f, %.2f)'
+#             % (aGb, a[0, 0], a[0, 1], b[0], b[1], x[0, 0], x[0, 1]))
+
+#         # axs = plot_mean_and_var(X_partial, mu, var)
+#         plt.scatter(X_partial[:, 0], X_partial[:, 1], color='k', marker='x')
+#         for ax in axs:
+#             ax.scatter(x[0, 0], x[0, 1], marker='x', color='k')
+#             ax.scatter(a[0, 0], a[0, 1], color='k', marker='x')
+#             ax.annotate("start", (a[0, 0], a[0, 1]))
+#             ax.scatter(b[0], b[1], color='k', marker='x')
+#             ax.annotate("end", (b[0], b[1]))
+
+#     plt.show()

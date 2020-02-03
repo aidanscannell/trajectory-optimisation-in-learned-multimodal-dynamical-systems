@@ -201,54 +201,60 @@ if plot_metric:
     cbar.set_label('$a^TG(x)b$ - y')
     plt.show()
 
-# Test G
-# start = np.array([0., -1.6]).reshape(1, 2)
-# start = np.array([0., -0.5]).reshape(1, 2)
-# end = np.array([0., 1.2]).reshape(2, 1)
-# start = np.array([-0.5, 0.5]).reshape(1, 2)
-# end = np.array([1.2, 0.5]).reshape(2, 1)
-# start = np.array([0., -0.6]).reshape(1, 2)
-# end = np.array([1.5, -0.6]).reshape(2, 1)
-# m = 1
-calc_metric_at_point = False
-if calc_metric_at_point:
-    x = np.array([0., -0.4]).reshape(1, -1)
-    start = [
-        x + np.array([0.2, 0]).reshape(1, -1),
-        x + np.array([0., 0.2]).reshape(1, -1)
-    ]
-    end = [
-        x.T + np.array([-0.2, 0]).reshape(-1, 1),
-        x.T + np.array([0., -0.2]).reshape(-1, 1)
-    ]
-    # end = c + np.array([-0.2, 0]).reshape(1, -1)
-    # end = end.T
+if calc_length:
+    # x = np.array([0., -0.4]).reshape(1, -1)
+    x = np.array([0.6, 0.5]).reshape(1, -1)
+    start = np.array([[-0.5, 0.5], [-.5, 1.2], [-.5, -.5]])
+    end = np.array([[1.5, 0.5], [1.5, 1.2], [1.5, -.5]])
+    end = np.array([[1.5, 0.6], [1.5, 1.3], [1.5, -.4]])
 
-    G, mu_j, var_j = calc_G_map(x, X_partial, Y_partial, kernel)
-    # print(c)
-    # print(G)
-    print('mu_j')
-    print(mu_j)
-    print('mu_j^T @ mu_j')
-    print(mu_j @ mu_j.T)
-    print('var_j')
-    print(var_j)
-    print("G")
-    print(G)
+    # G, mu_j, var_j = calc_G_map(x.reshape(1, -1), X_partial, Y_partial, kernel)
 
-    for a, b in zip(start, end):
-        aGb = a @ G @ b
-        print(
-            'aTG(x)b = %.5f for a:(%.2f, %.2f), b:(%.2f, %.2f), x:(%.2f, %.2f)'
-            % (aGb, a[0, 0], a[0, 1], b[0], b[1], x[0, 0], x[0, 1]))
+    lengths = []
+    for j in range(start.shape[0]):
+        s = start[j]
+        e = end[j]
+        print('start: ', s)
+        print('end: ', e)
+        cs = np.linspace(s, e, 1000)
+        dt = cs[1, 0] - cs[0, 0]
+        print('dt: ', dt)
+        length = 0
+        for i in range(1, cs.shape[0]):
+            # G, _, _ = calc_G_map(cs[i, :].reshape(1, -1), X_partial, Y_partial,
+            #                      kernel)
+            # print('cs[i,:]')
+            # print(cs[i, :])
+            G, mu_j, var_j = calc_G_map(cs[i, :].reshape(1, -1), X_partial,
+                                        Y_partial, kernel)
+            dcdt = (cs[i, :] - cs[i - 1, :]) / dt
+            dcdt = dcdt.reshape(-1, 1)
+            dcMdc = dcdt.T @ G @ dcdt
+            length += dcMdc
+            print(G)
+            print(length)
+            # length += np.sqrt(-dcMdc)
+            # length += np.sqrt(dcMdc)
+            # print('mu_j', mu_j)
+            # print('var_j', var_j)
+        lengths.append(length)
 
-        # axs = plot_mean_and_var(X_partial, mu, var)
-        plt.scatter(X_partial[:, 0], X_partial[:, 1], color='k', marker='x')
+    print(lengths)
+    axs = plot_mean_and_var(X_partial, mu, var)
+    # print(x)
+    # print(x.shape)
+    # for ax in axs:
+    #     ax.scatter(x[0, 0], x[0, 1], color='k', marker='x')
+    #     ax.annotate("G(x)", (x[0, 0], x[0, 1]))
+    for j in range(start.shape[0]):
+        s = start[j]
+        e = end[j]
         for ax in axs:
-            ax.scatter(x[0, 0], x[0, 1], marker='x', color='k')
-            ax.scatter(a[0, 0], a[0, 1], color='k', marker='x')
-            ax.annotate("start", (a[0, 0], a[0, 1]))
-            ax.scatter(b[0], b[1], color='k', marker='x')
-            ax.annotate("end", (b[0], b[1]))
+            ax.plot([s[0], e[0]], [s[1], e[1]])
+            ax.scatter(s[0], s[1], marker='x', color='k')
+            ax.scatter(e[0], e[1], color='k', marker='x')
+            ax.annotate("start", (s[0], s[1]))
+            ax.annotate("end", (e[0], e[1]))
+            ax.annotate(lengths[j], (s[0] + 0.4, s[1]))
 
-    plt.show()
+plt.show()

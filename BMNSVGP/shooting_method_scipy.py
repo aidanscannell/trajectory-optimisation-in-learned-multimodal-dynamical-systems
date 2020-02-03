@@ -142,7 +142,20 @@ def solve_bvp_tj(
     return yprime_at_0_estimate
 
 
-setup_global_vars()
+def load_data_and_init_kernel(filename='saved_models/params.npz'):
+    # Load kernel hyper-params and create kernel
+    params = np.load(filename)
+    lengthscale = params['l']  # [2]
+    var = params['var']  # [1]
+    X = params['x']  # [num_data x 2]
+    y = params['a']  # [num_data x 2] meen and var of alpha
+    Y = y[0:1, :, 0].T  # [num_data x 1]
+    kernel = DiffRBF(2, variance=var, lengthscale=lengthscale, ARD=True)
+    return X, Y, kernel
+
+
+X, Y, kernel = load_data_and_init_kernel()
+# setup_global_vars()
 
 areafuncs = {"funnel1": lambda x: [20 / (x + 2) - 0.166, -20 / (x + 1)**2]}
 fig, ax = plt.subplots()

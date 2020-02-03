@@ -178,29 +178,35 @@ X, Y, kernel = load_data_and_init_kernel()
 
 areafuncs = {"funnel1": lambda x: [20 / (x + 2) - 0.166, -20 / (x + 1)**2]}
 fig, ax = plt.subplots()
-integrator = ode(compute_zprime).set_integrator("dopri5")
+integrator = ode(compute_zprime).set_integrator("dopri5", nsteps=4000)
+# integrator = ode(compute_zprime).set_integrator("vode")
 y_at_length = [1, 2]
 y_at_0 = [0, 0]
-yprime_at_0 = [0.3, 1.2]
-length = 3
-step = 0.4
+yprime_at_0 = [0.5, 1.2]
+length = 1.9
+step = 0.5
 for nm, areaf in areafuncs.items():
     pjs = []
     z_at_0 = y_at_0 + yprime_at_0
     integrator.set_initial_value(z_at_0,
                                  t=0)  # Set the initial values of z and x
-    integrator.set_f_params(areaf)
+    integrator.set_f_params(areaf, X, Y, kernel)
     print('before solve')
-    yprime_at_0_estimate = solve_bvp_tj(y_at_0,
-                                        y_at_length,
-                                        yprime_at_0_guess=yprime_at_0,
-                                        areafunction=areaf,
-                                        length=length,
-                                        step=step,
-                                        silent=False)
+    yprime_at_0_estimate = solve_bvp_tj(
+        y_at_0,
+        y_at_length,
+        yprime_at_0_guess=yprime_at_0,
+        areafunction=areaf,
+        integrator=integrator,
+        # X=X,
+        # Y=Y,
+        # kernel=kernel,
+        length=length,
+        step=step,
+        silent=False)
     print('Optimised y\'(0): ', yprime_at_0_estimate)
-    print(type(yprime_at_0_estimate))
-    xs, zs = integrate_over_domain([y_at_0, yprime_at_0_estimate],
+    z_at_0 = y_at_0 + list(yprime_at_0_estimate)
+    xs, zs = integrate_over_domain(z_at_0,
                                    integrator,
                                    areaf,
                                    length=length,
@@ -208,22 +214,27 @@ for nm, areaf in areafuncs.items():
                                    silent=True)
     print('afer integrate')
     print(yprime_at_0_estimate)
-    pjs.append(np.array(zs)[-1, 1])
+    print(xs)
+    print(zs)
+    # pjs.append(np.array(zs)[-1, 1])
     # ax.plot(tenvs, pjs, label=nm)
-    ax.plot(xs, np.array(zs)[:, 0], label=nm)
+    # ax.plot(xs, np.array(zs)[:, 0], label=nm)
+    z = np.array(zs)
+    plt.plot(z[:, 0], z[:, 1])
+    plt.show()
 
-ax.legend(loc="best")
-props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-ax.text(0.5,
-        0.95,
-        "$T_j$ = %.0f" % (y_at_length, ),
-        transform=ax.transAxes,
-        fontsize=14,
-        verticalalignment='top',
-        bbox=props)
-plt.tight_layout()
+# ax.legend(loc="best")
+# props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+# ax.text(0.5,
+#         0.95,
+#         "$T_j$ = %.0f" % (y_at_length, ),
+#         transform=ax.transAxes,
+#         fontsize=14,
+#         verticalalignment='top',
+#         bbox=props)
+# plt.tight_layout()
 
-plt.show()
+# plt.show()
 
 # areafuncs = {
 #     "funnel1": lambda x: [20 / (x + 2) - 0.166, -20 / (x + 1)**2],

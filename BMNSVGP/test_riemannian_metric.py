@@ -76,7 +76,7 @@ def gp_predict(x_star, X, Y, kernel, jitter=1e-4):
     Kxs = kernel.K(X, x_star)
     # print(x_star.shape)
     # print(Kxs.shape)
-    mu_j = np.dot(Kxs.T, kinvy)
+    mu = np.dot(Kxs.T, kinvy)
     # print(mu_j.shape)
     # assert mu_j.shape == (input_dim, 1)
 
@@ -84,9 +84,10 @@ def gp_predict(x_star, X, Y, kernel, jitter=1e-4):
     v = scipy.linalg.solve_triangular(chol, Kxs, lower=True)
     # assert v.shape == (num_data, input_dim)
     vT = v.T
-    cov_j = Kss - np.matmul(vT, v)
+    cov = Kss - np.matmul(vT, v)
     # assert cov_j.shape == (input_dim, input_dim)
-    return mu_j, cov_j
+    # cov *= 100
+    return mu, cov
 
 
 # import data and parameters

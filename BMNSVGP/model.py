@@ -77,6 +77,9 @@ class BMNSVGP(Model):
         self.kern_h = SquaredExponentialDerivative(self.input_dim, ARD=True)
         feat = None
         M = 50
+        M = int(np.ceil(np.log(self.num_data)**self.input_dim))
+        # M = np.log(self.num_data) / np.log(self.input_dim)
+        print("Using %i inducing points." % M)
         idx = np.random.choice(range(self.num_data), size=M, replace=False)
         Z = X[idx, ...].reshape(-1, self.input_dim)
         self.feature_h = features.inducingpoint_wrapper(feat, Z)

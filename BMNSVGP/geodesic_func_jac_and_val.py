@@ -13,6 +13,7 @@ jitter = 1e-4
 
 @partial(jit, static_argnums=(1, 2, 3))
 def calc_G_map(c, X, Y, kernel):
+    c = c.reshape(1, -1)
     # num_data = X.shape[0]
     input_dim = X.shape[1]
     output_dim = Y.shape[1]
@@ -40,15 +41,21 @@ def calc_G_map(c, X, Y, kernel):
     # assert mu_j.shape == (input_dim, 1)
     # mu = np.dot(cross_cov.T, kinvy) + ymean
     v = scipy.linalg.solve_triangular(chol, dk_dtT.T, lower=True)
+    # v = scipy.linalg.solve_triangular(dk_dtT, chol, lower=True)
     # var = (amp * cov_map(exp_quadratic, xtest) - np.dot(v.T, v))
     # assert v.shape == (num_data, input_dim)
     # TODO should this be negative and is it correct
-    prod_lengthscales = 1 / reduce(lambda x, y: x * y, kernel.lengthscale, 1)
-    diag_d2k_dtt = prod_lengthscales * kernel.K(c, c)
-    d2k_dtt = np.eye(input_dim) * diag_d2k_dtt
+    # prod_lengthscales = 1 / reduce(lambda x, y: x * y, kernel.lengthscale, 1)
+    # d2k_dtt = -np.eye(input_dim) * kernel.K(c, c)
+
+    l2 = kernel.lengthscale**2
+    l2 = np.diag(l2)
+    d2k_dtt = -l2 * kernel.K(c, c)
+    # diag_d2k_dtt = prod_lengthscales * kernel.K(c, c)
+    # d2k_dtt = -np.eye(input_dim) * diag_d2k_dtt
     # d2k_dtt = 0.
     # print('vTv')
-    # print(np.matmul(v.T, v))
+    # print(np.matmul(v.T, v).shape)
     # print(d2k_dtt)
     cov_j = d2k_dtt - np.matmul(v.T, v)  # d2Kd2t doesn't need to be calculated
     # assert cov_j.shape == (input_dim, input_dim)
@@ -56,12 +63,14 @@ def calc_G_map(c, X, Y, kernel):
     mu_jT = mu_j.T
     # assert mu_jT.shape == (1, input_dim)
 
-    # jTj = np.matmul(mu_j, mu_jT)  # [input_dim x input_dim]
-    jTj = np.matmul(mu_jT, mu_j)  # [input_dim x input_dim]
+    jTj = np.matmul(mu_j, mu_jT)  # [input_dim x input_dim]
+    # jTj = np.matmul(mu_jT, mu_j)  # [1 x 1]
+    print(jTj.shape)
     # assert jTj.shape == (input_dim, input_dim)
-    G = jTj + output_dim * cov_j  # [input_dim x input_dim]
+    var_weight = 1.
+    G = jTj + var_weight * output_dim * cov_j  # [input_dim x input_dim]
     # assert G.shape == (input_dim, input_dim)
-    return G, mu_j, cov_j
+    return G, jTj, cov_j
 
 
 @partial(jit, static_argnums=(1, 2, 3))

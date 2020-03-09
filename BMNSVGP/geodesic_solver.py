@@ -4,7 +4,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 from jax import numpy as np
-from scipy.integrate import ode
+from jax import scipy as sp
+from scipy.integrate import solve_ivp
 from scipy.optimize import root
 from derivative_kernel_gpy import DiffRBF
 
@@ -28,42 +29,89 @@ def compute_zprime(x, z, X, Y, kernel):
     z_0 = np.array([z[0], z[1]])
     zprime_0 = np.array([z[2], z[3]])
     zprime_1 = geodesic_fun(z_0, zprime_0, X, Y, kernel)
+    # a = [z[2], z[3], zprime_1[0, 0], zprime_1[1, 0]]
     return [z[2], z[3], zprime_1[0, 0], zprime_1[1, 0]]
 
 
-def integrate_over_domain(z_at_0, integrator, length=1, step=0.2, silent=True):
+def integrate_over_domain(z_at_0,
+                          args,
+                          integrator='RK45',
+                          length=1,
+                          step=0.2,
+                          silent=True):
     """
     Call runge-kutta repeatedly to integrate the vector function z over the full domain (specified by length). Return
     a list of 2-vecs which are the value of the vector z at every point in the domain discretized by 'step'. Note that
     runge-kutta object calls x as "t" and z as "y".
 
     :param z_at_0: the value of the vector z=[y, y'] at the left boundary point. should be list or array.
-    :param integrator: the runge-kutta numerical integrator object
+    :param integrator: a string for the integration method to use e.g. 'RK45', 'DOP853'
     :param length: the length of the domain to integrate on
     :param step: the step size with which to discretize the domain
     :param silent: bool indicating whether to print the progress of the integrator
     :return: array of 2-vecs - the value of vector z obtained by integration for each point in the discretized domain.
     """
-    initial_conditions = z_at_0
-    integrator.set_initial_value(initial_conditions,
-                                 t=0)  # Set the initial values of z and x
-    dt = step
+    t = np.linspace(0., length, int(length / step))
+    X, Y, kernel = args
+    # print('here')
+    # print(t.shape)
+    # print(z_at_0)
+    z_at_0 = np.array(z_at_0)
+    # print(z_at_0.shape)
 
-    xs, zs = [], []
-    while integrator.successful() and integrator.t <= length:
-        integrator.integrate(integrator.t + dt)
-        xs.append(integrator.t)
-        zs.append([
-            integrator.y[0], integrator.y[1], integrator.y[2], integrator.y[3]
-        ])
-        if not silent:
-            print("Current x and z values: ", integrator.t, integrator.y)
-    return xs, zs
+    integrator = solve_ivp(
+        fun=lambda t, y: compute_zprime(t, y, X, Y, kernel),
+        # compute_zprime,
+        t_span=(0., length),
+        # t_span=t,
+        y0=z_at_0,
+        t_eval=t,
+        # options={'disp': True},
+        # options={'verbosity': 1},
+        # verbosity=1,
+        method=integrator)
+    # args=(X, Y, kernel),
+    # dense_output=True)
+    # print(integrator)
+    # print(integrator.t)
+    # print(integrator.y)
+    return integrator.t, integrator.y
+
+
+# def integrate_over_domain(z_at_0, integrator, length=1, step=0.2, silent=True):
+#     """
+#     Call runge-kutta repeatedly to integrate the vector function z over the full domain (specified by length). Return
+#     a list of 2-vecs which are the value of the vector z at every point in the domain discretized by 'step'. Note that
+#     runge-kutta object calls x as "t" and z as "y".
+
+#     :param z_at_0: the value of the vector z=[y, y'] at the left boundary point. should be list or array.
+#     :param integrator: the runge-kutta numerical integrator object
+#     :param length: the length of the domain to integrate on
+#     :param step: the step size with which to discretize the domain
+#     :param silent: bool indicating whether to print the progress of the integrator
+#     :return: array of 2-vecs - the value of vector z obtained by integration for each point in the discretized domain.
+#     """
+#     initial_conditions = z_at_0
+#     integrator.set_initial_value(initial_conditions,
+#                                  t=0)  # Set the initial values of z and x
+#     dt = step
+
+#     xs, zs = [], []
+#     while integrator.successful() and integrator.t <= length:
+#         integrator.integrate(integrator.t + dt)
+#         xs.append(integrator.t)
+#         zs.append([
+#             integrator.y[0], integrator.y[1], integrator.y[2], integrator.y[3]
+#         ])
+#         if not silent:
+#             print("Current x and z values: ", integrator.t, integrator.y)
+#     return xs, zs
 
 
 def solve_bvp_tj(y_at_0,
                  y_at_length,
                  yprime_at_0_guess,
+                 args,
                  integrator,
                  length=1,
                  step=0.2,
@@ -89,17 +137,28 @@ def solve_bvp_tj(y_at_0,
               (yprime_at_0[0], yprime_at_0[1]))
         z_at_0 = [y_at_0[0], y_at_0[1], yprime_at_0[0], yprime_at_0[1]]
         xs, zs = integrate_over_domain(z_at_0,
+                                       args,
                                        integrator,
                                        length=length,
                                        step=step,
                                        silent=silent)
-        y_at_length_integrated = np.array(zs)[-1, 0:2]
+        # y_at_length_integrated = np.array(zs)[-1, 0:2]
+        y_at_length_integrated = np.array(zs)[0:2, -1]
+        print('zs yo')
+        print(y_at_length_integrated)
 
         # Return the difference between y(L) found by numerical integrator and the true value
         y_at_length = np.array(y_at_length)
         error = y_at_length - y_at_length_integrated
         print('Residual [y(0)-y(L)] for current y\'(0): ', error)
-        return y_at_length - y_at_length_integrated
+        error = y_at_length - y_at_length_integrated
+        # dist = sp.spatial.distance.cdist(y_at_length, y_at_length_integrated,
+        #                                  'euclidean')
+        dist = np.linalg.norm(error)
+        print('Euclidean Distance ', dist)
+        return error
+        # return dist
+        # return y_at_length - y_at_length_integrated
 
     # loss_jac = jacfwd(residuals, 0)
     # loss_jac = jacrev(residuals, 0)
@@ -110,11 +169,13 @@ def solve_bvp_tj(y_at_0,
 
     yprime_at_0_guess = np.array(yprime_at_0_guess)
 
+    maxfev = 10000
     rt = root(
         residuals,
         yprime_at_0_guess,
         args=(y_at_0, y_at_length),
         # jac=loss_jac,
+        options={'maxfev': maxfev},
         tol=root_tol)
     yprime_at_0_estimate = rt.x
     return yprime_at_0_estimate
@@ -149,7 +210,10 @@ def load_data_and_init_kernel(filename):
 # Set parameters for optimisation
 length = 1.
 step = 0.05
-root_tol = 0.05
+step = 0.01
+# root_tol = 0.05
+# root_tol = 0.0005
+root_tol = None
 
 # Set Boundary Conditions
 # y_at_0 = [3., -2.]
@@ -158,7 +222,8 @@ root_tol = 0.05
 
 y_at_length = [-2., 2.5]
 y_at_0 = [2., -2.8]
-yprime_at_0 = [-5.61823110, 3.99225430]  # alpha to right
+# yprime_at_0 = [-5.61823110, 3.99225430]  # alpha to right
+yprime_at_0 = [-8.61823110, -3.99225430]  # alpha to right
 X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
     filename='saved_models/params_fake.npz')
 Y = a_mu
@@ -186,17 +251,57 @@ for ax in axs:
     ax.annotate("end", (y_at_length[0], y_at_length[1]))
 plt.show()
 
-integrator = ode(compute_zprime).set_integrator("dopri5")
+# integrator = ode(compute_zprime).set_integrator("dopri5")
 # integrator = ode(compute_zprime).set_integrator("dopri5", nsteps=10000)
 
 z_at_0 = y_at_0 + yprime_at_0
-integrator.set_initial_value(z_at_0, t=0)  # Set the initial values of z and x
-integrator.set_f_params(X, Y, kernel)
+# integrator.set_initial_value(z_at_0, t=0)  # Set the initial values of z and x
+# integrator.set_f_params(X, Y, kernel)
+integrator = 'RK45'
+# integrator = 'LSODA'
+
+args = (X, Y, kernel)
+
+xs, zs = integrate_over_domain(z_at_0,
+                               args,
+                               integrator,
+                               length=length,
+                               step=step,
+                               silent=False)
+# print(xs.shape)
+# print(zs.shape)
+# print(zs[:, 0])
+# print(zs[:, -1])
+# print(xs)
+# print(zs)
+
+plt.close()
+axs = plot_mean_and_var(xy, mu, var)
+x = np.array(y_at_0).reshape(1, 2)
+z = np.array(zs).T
+z = np.append(x, z[:, 0:2], axis=0)
+for ax in axs:
+    # ax.scatter(z[0, :], z[1, :], marker='x', color='k')
+    # ax.plot(z[0, :], z[1, :], marker='x', color='k')
+    ax.scatter(z[:, 0], z[:, 1], marker='x', color='k')
+    ax.plot(z[:, 0], z[:, 1], marker='x', color='k')
+    ax.scatter(y_at_0[0], y_at_0[1], marker='o', color='r')
+    ax.scatter(y_at_length[0], y_at_length[1], color='r', marker='o')
+    ax.annotate("start", (y_at_0[0], y_at_0[1]))
+    ax.annotate("end", (y_at_length[0], y_at_length[1]))
+
+traj_str = 'x1(0):' + str(y_at_0[0]) + '-x2(0):' + str(
+    y_at_0[1]) + '--' + 'x1(L):' + str(y_at_length[0]) + '-x2(L):' + str(
+        y_at_length[1])
+traj_str = re.sub('[.]', '', traj_str)
+plt.suptitle('Probabilistic Goedesic')
+plt.show()
 
 # yprime_at_0_estimate = yprime_at_0
 yprime_at_0_estimate = solve_bvp_tj(y_at_0,
                                     y_at_length,
                                     yprime_at_0_guess=yprime_at_0,
+                                    args=args,
                                     integrator=integrator,
                                     length=length,
                                     step=step,
@@ -206,17 +311,27 @@ yprime_at_0_estimate = solve_bvp_tj(y_at_0,
 print('Optimised y\'(0): ', yprime_at_0_estimate)
 z_at_0 = y_at_0 + list(yprime_at_0_estimate)
 xs, zs = integrate_over_domain(z_at_0,
+                               args,
                                integrator,
                                length=length,
                                step=step,
                                silent=False)
 
+print(xs.shape)
+print(zs.shape)
+print(zs[:, 0])
+print(zs[:, -1])
+print(xs)
+print(zs)
+
 plt.close()
 axs = plot_mean_and_var(xy, mu, var)
 x = np.array(y_at_0).reshape(1, 2)
-z = np.array(zs)
+z = np.array(zs).T
 z = np.append(x, z[:, 0:2], axis=0)
 for ax in axs:
+    # ax.scatter(z[0, :], z[1, :], marker='x', color='k')
+    # ax.plot(z[0, :], z[1, :], marker='x', color='k')
     ax.scatter(z[:, 0], z[:, 1], marker='x', color='k')
     ax.plot(z[:, 0], z[:, 1], marker='x', color='k')
     ax.scatter(y_at_0[0], y_at_0[1], marker='o', color='r')

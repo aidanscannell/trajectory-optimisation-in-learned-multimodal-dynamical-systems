@@ -15,7 +15,7 @@ from utils.visualise_metric import (create_grid, gp_predict,
                                     plot_mean_and_var)
 
 
-def compute_zprime(x, z, X, Y, kernel):
+def compute_zprime(x, z, ode_func, ode_args):
     """
     Compute the value of the vector z's derivative at a point given the value of the vector function z and the
     independent variable x. The form of this calculation is specified by the vector ODE. Return a vector for the
@@ -28,13 +28,13 @@ def compute_zprime(x, z, X, Y, kernel):
     """
     z_0 = np.array([z[0], z[1]])
     zprime_0 = np.array([z[2], z[3]])
-    zprime_1 = geodesic_fun(z_0, zprime_0, X, Y, kernel)
-    # a = [z[2], z[3], zprime_1[0, 0], zprime_1[1, 0]]
+    zprime_1 = ode_func(z_0, zprime_0, *ode_args)
     return [z[2], z[3], zprime_1[0, 0], zprime_1[1, 0]]
 
 
 def integrate_over_domain(z_at_0,
-                          args,
+                          ode_func,
+                          ode_args,
                           integrator='RK45',
                           length=1,
                           step=0.2,
@@ -53,15 +53,15 @@ def integrate_over_domain(z_at_0,
     :return: array of 2-vecs - the value of vector z obtained by integration for each point in the discretized domain.
     """
     t = np.linspace(0., length, int(length / step))
-    X, Y, kernel = args
     z_at_0 = np.array(z_at_0)
 
-    integrator = solve_ivp(fun=lambda t, y: compute_zprime(t, y, *args),
-                           t_span=(0., length),
-                           y0=z_at_0,
-                           t_eval=t,
-                           max_step=max_step,
-                           method=integrator)
+    integrator = solve_ivp(
+        fun=lambda t, y: compute_zprime(t, y, ode_func, ode_args),
+        t_span=(0., length),
+        y0=z_at_0,
+        t_eval=t,
+        max_step=max_step,
+        method=integrator)
     # dense_output=True)
     print(integrator)
     return integrator.t, integrator.y
@@ -70,7 +70,8 @@ def integrate_over_domain(z_at_0,
 def solve_bvp_tj(y_at_0,
                  y_at_length,
                  yprime_at_0_guess,
-                 args,
+                 ode_func,
+                 ode_args,
                  integrator,
                  length=1,
                  step=0.2,
@@ -98,7 +99,8 @@ def solve_bvp_tj(y_at_0,
               (yprime_at_0[0], yprime_at_0[1]))
         z_at_0 = [y_at_0[0], y_at_0[1], yprime_at_0[0], yprime_at_0[1]]
         xs, zs = integrate_over_domain(z_at_0,
-                                       args,
+                                       ode_func,
+                                       ode_args,
                                        integrator,
                                        length=length,
                                        step=step,
@@ -112,13 +114,6 @@ def solve_bvp_tj(y_at_0,
         error = y_at_length - y_at_length_integrated
         print('Residual [y(0)-y(L)] for current y\'(0): ', error)
         return error
-
-    # loss_jac = jacfwd(residuals, 0)
-    # loss_jac = jacrev(residuals, 0)
-    # val_and_jac = value_and_jacfwd(residuals, 0)
-    # print('jac')
-    # print(loss_jac(yprime_at_0_guess, y_at_0, y_at_length))
-    # print(len(loss_jac(yprime_at_0_guess, y_at_0, y_at_length)))
 
     yprime_at_0_guess = np.array(yprime_at_0_guess)
 
@@ -164,6 +159,7 @@ length = 1.
 step = 0.05
 max_step = 0.001
 integrator = 'RK45'
+ode_func = geodesic_fun
 
 # Set parameters for root finder
 root_tol = 0.05
@@ -181,7 +177,7 @@ X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
 Y = a_mu
 
 # Initialise args for ode func (compute_zprime)
-args = (X, Y, kernel)
+ode_args = (X, Y, kernel)
 
 # Plot manifold with start and end points
 xy, xx, yy = create_grid(X, N=961)
@@ -200,7 +196,8 @@ plt.show()
 yprime_at_0_estimate = solve_bvp_tj(y_at_0,
                                     y_at_length,
                                     yprime_at_0_guess=yprime_at_0,
-                                    args=args,
+                                    ode_func=ode_func,
+                                    ode_args=ode_args,
                                     integrator=integrator,
                                     length=length,
                                     step=step,
@@ -211,7 +208,8 @@ yprime_at_0_estimate = solve_bvp_tj(y_at_0,
 print('Optimised y\'(0): ', yprime_at_0_estimate)
 z_at_0 = y_at_0 + list(yprime_at_0_estimate)
 xs, zs = integrate_over_domain(z_at_0,
-                               args,
+                               ode_func,
+                               ode_args,
                                integrator,
                                length=length,
                                step=step,

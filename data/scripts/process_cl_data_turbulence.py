@@ -15,6 +15,8 @@ y_alpha = np.array([-551, 1954, 1943, -586, -551]) / 1000
 # angles = [np.pi / 2, 0., np.pi, np.pi]
 # angles = [np.pi / 2, np.pi, 0, np.pi]  # 19dec 1
 angles = [np.pi / 2, np.pi, 0, -np.pi / 2]
+angles = [np.pi / 2, np.pi, 0, 0]
+# angles = [np.pi / 2, 0, np.pi, -np.pi / 2]
 
 # angles = [np.pi, np.pi, np.pi, np.pi]  # 20dec 1
 translations_x = np.array([-1981, -1905, 3086, 3035]) / 1000
@@ -36,10 +38,46 @@ def parse_vicon_csv(folder_name=None,
                 [model_input, model_input_trial[10:-10]])
             model_output = np.concatenate(
                 [model_output, model_output_trial[10:-10]])
+
+    # remove data where tello is flying along y axis
+    # x2_low = -3.
+    x2_low = -2.5
+    x2_high = 2.
+    x1_high = 3.
+    mask_1 = model_input[:, 1] > x2_low
+    mask_3 = model_input[:, 1] < x2_high
+    mask_2 = model_input[:, 0] < x1_high
+    mask = mask_1 & mask_3 & mask_2
+    model_input = model_input[mask, :]
+    model_output = model_output[mask, :]
+
     print('final')
     print(model_input.shape)
     print(model_output.shape)
-    np.savez(model_inputs_filename, x=model_input, y=model_output)
+    # np.savez(model_inputs_filename, x=model_input, y=model_output)
+
+    dxyz = model_output[:, 3]
+    x = model_input[:, 0]
+    y = model_input[:, 1]
+    # fig, ax2 = plt.subplots(nrows=1)
+    fig = plt.figure(figsize=(12, 12))
+    plt.quiver(x,
+               y,
+               dxyz,
+               np.zeros([*dxyz.shape]),
+               angles='xy',
+               scale_units='xy',
+               width=0.001,
+               scale=1,
+               zorder=10,
+               color='white')
+    plt.axis('off')
+    save_name = 'images/quiver.png'
+    plt.savefig(save_name, transparent=True, bbox_inches='tight')
+    # ax2.tricontour(x, y, dxyz, levels=14, linewidths=0.5, colors='k')
+    # cntr2 = ax2.tricontourf(x, y, dxyz, levels=14, cmap="RdBu_r")
+    # plt.scatter(x, y, color='k', marker='x')
+    plt.show()
 
 
 def rotate_and_translate(start_pos, data_dict):
@@ -84,74 +122,29 @@ def calc_error(data_dict, step, tello_x, tello_y):
         diff_rz = data_dict['vicon_rz'][i] - data_dict['tello_rz'][i]
         drz[counter] = abs(diff_rz)
         # print('diff_rz')
-        print(diff_rz)
-        if i == 1:
-            print(tello_x[i])
-            print(data_dict['vicon_x'][0])
+        # print(diff_rz)
+        # if i == 1:
+        # print(tello_x[i])
+        # print(data_dict['vicon_x'][0])
         if int(tello_x[i] * 1) == int(data_dict['vicon_x'][0] * 1) and int(
                 tello_y[i] * 1) == int(data_dict['vicon_y'][0] * 1):
             # if int(tello_x[i] * 100) == int(data_dict['vicon_x'][0] * 100) or int(
             #         tello_x[i - step] * 100) == int(data_dict['vicon_x'][0] * 100):
-            print('ZERO')
-            print('i: %i' % i)
+            # print('ZERO')
+            # print('i: %i' % i)
             tello_zero_idx.append(i)
             n_steps += 1
-            print(n_steps)
+            # print(n_steps)
         else:
             # print('NON ZERO')
-            dx[counter] = (
-                data_dict['vicon_x'][i] -
-                data_dict['vicon_x'][i - step * n_steps] -
-                (tello_x[i] - tello_x[i - step * n_steps])) / n_steps
-            dy[counter] = (
-                data_dict['vicon_y'][i] -
-                data_dict['vicon_y'][i - step * n_steps] -
-                (tello_y[i] - tello_y[i - step * n_steps])) / n_steps
-            dz[counter] = (
-                data_dict['vicon_z'][i] -
-                data_dict['vicon_z'][i - step * n_steps] -
-                (data_dict['tello_z'][i] -
-                 data_dict['tello_z'][i - step * n_steps])) / n_steps
-
-            dvx = (data_dict['vicon_x'][i] -
-                   data_dict['vicon_x'][i - step * n_steps]) / n_steps
-            dvy = (data_dict['vicon_y'][i] -
-                   data_dict['vicon_y'][i - step * n_steps]) / n_steps
-            dvz = (data_dict['vicon_z'][i] -
-                   data_dict['vicon_z'][i - step * n_steps]) / n_steps
-            dv = np.sqrt(dvx**2 + dvy**2 + dvz**2)
-            dtx = (data_dict['tello_x'][i] -
-                   data_dict['tello_x'][i - step * n_steps]) / n_steps
-            dty = (data_dict['tello_y'][i] -
-                   data_dict['tello_y'][i - step * n_steps]) / n_steps
-            dtz = (data_dict['tello_z'][i] -
-                   data_dict['tello_z'][i - step * n_steps]) / n_steps
-            dt = np.sqrt(dtx**2 + dty**2 + dtz**2)
-            dxyz[counter] = abs(dv - dt)
-            # dxx = dx[counter] * np.cos(-diff_rz) + dy[counter] * np.tan(
-            #     -diff_rz)
-            # dyy = dy[counter] * np.cos(-diff_rz) + dx[counter] * np.tan(
-            # -diff_rz)
-            # dxyz[counter] = np.sqrt(dx[counter]**2 + dy[counter]**2 +
-            #                         dz[counter]**2)
-            # dx[counter] = dxx
-            # dy[counter] = dyy
-            # dx[counter] = data_dict['vicon_x'][i] - data_dict['vicon_x'][
-            #     i - step] - (data_dict['tello_x'][i] -
-            #                  data_dict['tello_x'][i - step])
-            # dy[counter] = data_dict['vicon_y'][i] - data_dict['vicon_y'][
-            #     i - step] - (data_dict['tello_y'][i] -
-            #                  data_dict['tello_y'][i - step])
-            # dz[counter] = data_dict['vicon_z'][i] - data_dict['vicon_z'][
-            #     i - step] - (data_dict['tello_z'][i] -
-            #                  data_dict['tello_z'][i - step])
-            # dy[counter] = data_dict['vicon_y'][i] - data_dict['tello_y'][
-            #     i] - data_dict['vicon_x'][i - 1]
-            # dz[counter] = data_dict['vicon_z'][i] - data_dict['tello_z'][
-            #     i] - data_dict['vicon_x'][i - 1]
-            # dx_sum += dx[counter]
-            # dy_sum += dy[counter]
-            # dz_sum += dz[counter]
+            dx[counter] = (data_dict['vicon_x'][i] -
+                           data_dict['vicon_x'][i - step * n_steps])
+            #- (tello_x[i] - tello_x[i - step * n_steps])) / n_steps
+            dy[counter] = (data_dict['vicon_y'][i] -
+                           data_dict['vicon_y'][i - step * n_steps])
+            #- (tello_y[i] - tello_y[i - step * n_steps])) / n_steps
+            dz[counter] = (data_dict['vicon_z'][i] -
+                           data_dict['vicon_z'][i - step * n_steps])
 
             n_steps = 1
         n_steps_array[counter] = int(n_steps)
@@ -164,7 +157,10 @@ def parse_single_csv(file_name):
     print('Parsing: %s' % file_name)
     data = pd.read_csv(file_name, index_col=0)
     data_np = data.to_numpy()
+    # data_np = data.to_numpy()[800:-400]
     # data_np = data_np[500:]
+    print('here')
+    print(data_np.shape)
     # data_np = data_np[100:]
     # print(data_np.shape)
 
@@ -182,11 +178,23 @@ def parse_single_csv(file_name):
         start_pos = 1
     print('start position: %i' % start_pos)
 
+    start_idx = 0
+    for i in range(data_np.shape[0]):
+        if data_dict['vicon_x'][i] < -1.8 and data_dict['vicon_y'][i] > -1:
+            start_idx = i
+            # print('x: ', data_dict['vicon_x'][i])
+            # print('y: ', data_dict['vicon_y'][i])
+            break
+
+    data_dict = {}
+    for idx, col in enumerate(data.columns):
+        data_dict[col] = data_np[start_idx:, idx]
+
     tello_x, tello_y, data_dict = rotate_and_translate(start_pos, data_dict)
 
     data_dict['tello_x'] = tello_x
     data_dict['tello_y'] = tello_y
-    step = 10
+    step = 20
 
     # step = 40
     # step = 50
@@ -209,6 +217,15 @@ def parse_single_csv(file_name):
         # dy = dy[-diff_y:]
         # dx = dx[:-1]
         # dy = dy[:-1]
+
+    if start_pos == 1:
+        dxyz = dx
+    elif start_pos == 2:
+        dxyz = dx
+    elif start_pos == 3:
+        dxyz = dx
+    elif start_pos == 4:
+        dxyz = dy
 
     model_input = np.stack(
         [data_dict['vicon_x'][0::step], data_dict['vicon_y'][0::step]]).T
@@ -258,15 +275,15 @@ def parse_single_csv(file_name):
     y = data_dict['vicon_y'][0::step]
     z = dxyz
     # z = drz
-    fig, ax2 = plt.subplots(nrows=1)
-    ax2.tricontour(x, y, z, levels=14, linewidths=0.5, colors='k')
-    cntr2 = ax2.tricontourf(x, y, z, levels=14, cmap="RdBu_r")
-    fig.colorbar(cntr2, ax=ax2)
-    ax2.plot(x, y, 'ko', ms=3)
-    ax2.set(xlim=(-2, 2), ylim=(-2, 2))
+    # fig, ax2 = plt.subplots(nrows=1)
+    # ax2.tricontour(x, y, z, levels=14, linewidths=0.5, colors='k')
+    # cntr2 = ax2.tricontourf(x, y, z, levels=14, cmap="RdBu_r")
+    # fig.colorbar(cntr2, ax=ax2)
+    # ax2.plot(x, y, 'ko', ms=3)
+    # ax2.set(xlim=(-2, 2), ylim=(-2, 2))
     # ax2.set_title('tricontour (%d points)' % npts)
-    plt.subplots_adjust(hspace=0.5)
-    plt.show()
+    # plt.subplots_adjust(hspace=0.5)
+    # plt.show()
 
     # plt.scatter(
     #     tello_x[10:],
@@ -278,15 +295,30 @@ def parse_single_csv(file_name):
     #     color='k',
     #     alpha=0.6,
     #     zorder=5)
-    plt.quiver(data_dict['vicon_x'][0::step],
-               data_dict['vicon_y'][0::step],
-               dx,
-               dy,
+    # fig, ax2 = plt.subplots(nrows=1)
+    # ax2.tricontour(x, y, dxyz, levels=14, linewidths=0.5, colors='k')
+    # cntr2 = ax2.tricontourf(x, y, dxyz, levels=14, cmap="RdBu_r")
+    # plt.show()
+    fig = plt.figure(figsize=(12, 12))
+    plt.quiver(x,
+               y,
+               dxyz,
+               np.zeros([*dxyz.shape]),
                angles='xy',
                scale_units='xy',
                width=0.001,
                scale=1,
-               zorder=10)
+               zorder=10,
+               color='white')
+    # plt.quiver(data_dict['vicon_x'][0::step],
+    #            data_dict['vicon_y'][0::step],
+    #            dx,
+    #            dy,
+    #            angles='xy',
+    #            scale_units='xy',
+    #            width=0.001,
+    #            scale=1,
+    #            zorder=10)
 
     # plt.plot(data_dict['tello_x'],
     #          data_dict['tello_y'],
@@ -294,12 +326,15 @@ def parse_single_csv(file_name):
     # mask = np.ones(tello_x.shape, bool)
     # mask[tello_zero_idx] = False
     # plt.plot(tello_x[mask], tello_y[mask], label='tello transformed')
-    plt.plot(tello_x, tello_y, label='tello transformed')
+    # plt.plot(tello_x, tello_y, label='tello transformed')
     # plt.annotate('start',
     #              xy=(data_dict['tello_x'][0], data_dict['tello_y'][0]))
-    plt.annotate('start',
-                 xy=(data_dict['vicon_x'][0], data_dict['vicon_y'][0]))
-    plt.plot(data_dict['vicon_x'], data_dict['vicon_y'], label='vicon')
+    # plt.annotate('start',
+    #              xy=(data_dict['vicon_x'][0], data_dict['vicon_y'][0]))
+    plt.plot(data_dict['vicon_x'],
+             data_dict['vicon_y'],
+             label='vicon',
+             color="darkmagenta")
     # plt.scatter(data_dict['vicon_x'][::step],
     #             data_dict['vicon_y'][::step],
     #             marker='x',
@@ -313,10 +348,12 @@ def parse_single_csv(file_name):
     # plt.plot(-data_dict['vicon_y'],
     #          data_dict['vicon_x'],
     #          label='vicon rotated')
-    plt.plot(x_alpha, y_alpha)
-    plt.legend()
-    save_name = 'images/trajectory.pdf'
-    # plt.savefig(save_name, transparent=True, bbox_inches='tight')
+    # plt.plot(x_alpha, y_alpha)
+    plt.axis('off')
+    # plt.xlim(-10, 12)
+    # plt.legend()
+    save_name = 'images/trajectory.png'
+    plt.savefig(save_name, transparent=True, bbox_inches='tight')
     plt.show(block=True)
     return model_input, model_output
 
@@ -327,10 +364,16 @@ if __name__ == "__main__":
     # cwd = os.getcwd()
     # folder_name = '../csv/closed-loop/19dec'
     # folder_name = '../csv/closed-loop/20dec/rz'
-    folder_name = '../csv/turbulence/21-feb'
+    folder_name = '../csv/turbulence/21-feb/start-pos1/test'
+    folder_name = '../csv/turbulence/21-feb/start-pos1'
+    folder_name = '../csv/turbulence/25-feb/fan-fixed-setting-2-center'
+    folder_name = '../csv/turbulence/25-feb/fan-fixed-setting-2-center/subset'
+    folder_name = '../csv/turbulence/27-feb/half-lengthscale'
     # folder_name = '../csv/closed-loop/20dec'
     # folder_name = cwd
     print(folder_name)
     # cwd_split = re.split('loop/', cwd)
-    parse_vicon_csv(folder_name,
-                    model_inputs_filename='../npz/turbulence/model_data.npz')
+    parse_vicon_csv(
+        folder_name,
+        model_inputs_filename=
+        '../npz/turbulence/model_data_fan_fixed_middle_short_lengthscale.npz')

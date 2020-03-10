@@ -1,0 +1,16 @@
+* Data Pre-Processing
+This directory contains all of the data collected from the DJI Tello quadcopter flying in the Bristol Robotics Laboratory.
+It also contains the scripts for processing it so that it can be used by the BMNSVGP model.
+
+The csv directory contains all of the raw csv files that contain information from the drone and the vicon tracking system. It therefore contains the drones belief in its current position as well as its true position (given by the vicon tracking system). 
+
+The drone was made to follow a trajectory using a closed loop controller with access to the drones true position (vicon data).
+
+The ```parse_cl_data_turbulence.py``` takes a csv file and outputs a npz file containing the inputs and outputs to be used with BMNSVGP.
+We assume the quadcopter lives in a 2D world and simply model the state as $s\_t = (x, y)\_$.
+The output of the model is the change in state since the last time step i.e. $\delta s = (\delta x, \delta y, \delta z)$.
+
+The csv file to read and the npz (numpy) path-to-file should be specified within the script.
+
+
+The ```visualise_data_turbulence.py``` script is a simple script that reads a npz file and plots the quiver and contour of the data.

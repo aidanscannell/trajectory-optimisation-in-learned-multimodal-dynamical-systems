@@ -79,7 +79,12 @@ class BernoulliGaussian(Likelihood):
 
     @params_as_tensors
     def predict_mean_and_var_a(self, Hmu, Hvar):
-        return self.likelihood_bern.predict_mean_and_var(Hmu, Hvar)
+        p = inv_probit(Hmu / tf.sqrt(1 + Hvar))
+        # p = inv_probit(Hmu)
+        # cov = inv_probit(Hvar)
+        # return p, cov
+        return p, p - tf.square(p)
+        # return self.likelihood_bern.predict_mean_and_var(Hmu, Hvar)
 
     @params_as_tensors
     def predict_mean_a(self, H):

@@ -21,7 +21,7 @@ from gpflow import (autoflow, features, kullback_leiblers, params_as_tensors,
                     settings, transforms)
 from gpflow.conditionals import Kuu, conditional
 # from gpflow.decors import autoflow, params_as_tensors
-from gpflow.mean_functions import Zero
+from gpflow.mean_functions import Constant, Zero
 from gpflow.models.model import Model
 from gpflow.multioutput import features as mf
 from gpflow.multioutput import kernels as mk
@@ -72,12 +72,15 @@ class BMNSVGP(Model):
         # self.whiten = False
 
         # init separation GP
-        self.mean_function_h = Zero(output_dim=1)
+        # self.mean_function_h = Zero(output_dim=1)
+        self.mean_function_h = Constant()
         # self.kern_h = gpflow.kernels.RBF(input_dim=self.input_dim, ARD=True)
         self.kern_h = SquaredExponentialDerivative(self.input_dim, ARD=True)
         feat = None
         M = 50
-        M = int(np.ceil(np.log(self.num_data)**self.input_dim))
+        # M = int(np.ceil(np.log(self.num_data)**self.input_dim))
+        M = 200
+        self.num_inducing = M
         # M = np.log(self.num_data) / np.log(self.input_dim)
         print("Using %i inducing points." % M)
         idx = np.random.choice(range(self.num_data), size=M, replace=False)
@@ -99,7 +102,8 @@ class BMNSVGP(Model):
         # TODO: change 2 to the number of dynamics GPs
         for i in range(2):
             # init mean functions
-            mean_functions.append(Zero(output_dim=self.output_dim))
+            mean_functions.append(Constant())
+            # mean_functions.append(Zero(output_dim=self.output_dim))
 
             # Create list of kernels for each output
             kern_list = [
@@ -207,6 +211,8 @@ class BMNSVGP(Model):
                            [num_samples, -1])  # [num_samples x num_data]
         p_y = []
         for f_mean, variance in zip(f_means, self.likelihood.variances):
+            # jitter = 1e-3
+            # variance += tf.eye(2, dtype=float_type) * jitter
             dist_y = tfp.distributions.MultivariateNormalFullCovariance(
                 loc=f_mean, covariance_matrix=variance)
             py = dist_y.prob(self.Y)  # [num_data, ]
@@ -263,9 +269,15 @@ class BMNSVGP(Model):
                                    self.q_sqrt_h)
 
         # Lets get conditional p(h_n | U_h, x_n) for all N
-        h_mean, h_var = self._build_predict_h(self.X,
-                                              full_cov=False,
-                                              full_output_cov=False)
+        h_mean, h_var = self._build_predict_h(
+            self.X,
+            full_cov=False,
+            # full_cov=True,
+            full_output_cov=False)
+
+        # h_var = h_var + tf.eye(self.num_inducing, dtype=float_type) * 1e-5
+        # dist_h = tfp.distributions.MultivariateNormalFullCovariance(
+        #     loc=h_mean, covariance_matrix=h_var)
         dist_h = tfp.distributions.Normal(loc=h_mean, scale=h_var)
 
         KL_f = 0
@@ -406,4 +418,5 @@ class BMNSVGP(Model):
         a_mean, a_var = self.likelihood.predict_mean_and_var_a(h_mean, h_var)
         y_mean = y_means[0] * (1 - a_mean) + y_means[1] * a_mean
         y_var = y_vars[0] * (1 - a_mean) + y_vars[1] * a_mean
+        # TODO Account for cross covariance in y_var
         return y_mean, y_var

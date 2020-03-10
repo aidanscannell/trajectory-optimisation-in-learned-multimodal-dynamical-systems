@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import numpy as np
 from scipy.stats import multivariate_normal
-from utils import plot_contourf, plot_data_1d
+
+from utils.utils import plot_contourf, plot_data_1d
 
 
 def func1(X):

@@ -238,7 +238,7 @@ def plot_contourf(x, y, z, a=None, contour=None, title=None, save_name=None):
     plt.title(title)
     if save_name is not None:
         plt.savefig(save_name, transparent=True, bbox_inches='tight')
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 def plot_contourf_var(x,
@@ -262,12 +262,43 @@ def plot_contourf_var(x,
     cbar.set_label('variance')
 
     if a_true is not None:
-        axs[0].plot(a_true[0], a_true[1])
-        axs[1].plot(a_true[0], a_true[1])
+        axs[0].plot(a_true[0], a_true[1], 'k')
+        axs[1].plot(a_true[0], a_true[1], 'k')
 
     plt.suptitle(title)
     if save_name is not None:
-        plt.savefig(save_name, transparent=True, bbox_inches='tight')
+        fig, ax = plt.subplots(1, 1, figsize=(12, 4))
+        surf_mu, cont_mu = plot_contour(ax, x, y, z, a, contour)
+        cbar = fig.colorbar(surf_mu, shrink=0.5, aspect=5, ax=ax)
+        if a_true is not None:
+            # m, logger = train_model(X_partial, Y_partial, num_iters=15000)
+            ax.plot(a_true[0], a_true[1], 'k')
+        plt.savefig('../images/mean_' + save_name,
+                    transparent=True,
+                    bbox_inches='tight')
+        fig, ax = plt.subplots(1, 1, figsize=(12, 4))
+        surf_var, cont_var = plot_contour(ax, x, y, z_var, a, contour)
+        cbar = fig.colorbar(surf_var, shrink=0.5, aspect=5, ax=ax)
+        if a_true is not None:
+            ax.plot(a_true[0], a_true[1], 'k')
+        plt.savefig('../images/var_' + save_name,
+                    transparent=True,
+                    bbox_inches='tight')
+        # extent_mean = axs[0].get_window_extent().transformed(
+        #     fig.dpi_scale_trans.inverted())
+        # extent_var = axs[1].get_window_extent().transformed(
+        #     fig.dpi_scale_trans.inverted())
+
+        # fig.savefig('mean_' + save_name, bbox_inches=extent_mean)
+        # fig.savefig('var_' + save_name, bbox_inches=extent_var)
+
+        # pad the saved area by 10% in the x-direction and 20% in the y-direction
+        # fig.savefig('mean2_' + save_name,
+        #             bbox_inches=extent_mean.expanded(1.38, 1.15))
+        # fig.savefig('var2_' + save_name,
+        #             bbox_inches=extent_var.expanded(1.38, 1.15))
+
+        # plt.savefig(save_name, transparent=True, bbox_inches='tight')
     plt.show()
 
 
@@ -435,6 +466,7 @@ def plot_model_2d_uav(m,
     Y = m.Y.value
 
     if a is True:
+        print(xy.shape)
         a_mu, a_var = m.predict_a(xy)  # Predict alpha values at test locations
         # plot_contourf(xx, yy, a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha')
         # plot_contourf(xx, yy, 1-a_mu.reshape(xx.shape), contour=[0.5], title='predicted alpha inverted')
@@ -454,15 +486,18 @@ def plot_model_2d_uav(m,
         f_mus, f_vars = m.predict_f(
             xy)  # Predict alpha values at test locations
         for i, (f_mu, f_var) in enumerate(zip(f_mus, f_vars)):
+            i = i + 1
             plot_contourf_var(xx,
                               yy,
                               f_mu[:, 0].reshape(xx.shape),
                               f_var[:, 0].reshape(xx.shape),
+                              save_name='f' + str(i) + '_dim_1_quadcopter.pdf',
                               title=('predicted $f_%i$ dim 1' % i))
             plot_contourf_var(xx,
                               yy,
                               f_mu[:, 1].reshape(xx.shape),
                               f_var[:, 1].reshape(xx.shape),
+                              save_name='f' + str(i) + '_dim_2_quadcopter.pdf',
                               title=('predicted $f_%i$ dim 2' % i))
 
     if y is True:
@@ -474,22 +509,26 @@ def plot_model_2d_uav(m,
                               yy,
                               y_mu[:, 0].reshape(xx.shape),
                               y_var[:, 0].reshape(xx.shape),
+                              save_name='y_1_quadcopter.pdf',
                               title='predicted y dim 1')
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 1].reshape(xx.shape),
                               y_var[:, 1].reshape(xx.shape),
+                              save_name='y_2_quadcopter.pdf',
                               title='predicted y dim 2')
         else:
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 0].reshape(xx.shape),
                               y_var[:, 0].reshape(xx.shape),
+                              save_name='y_1_quadcopter.pdf',
                               title='predicted y dim 1')
             plot_contourf_var(xx,
                               yy,
                               y_mu[:, 1].reshape(xx.shape),
                               y_var[:, 1].reshape(xx.shape),
+                              save_name='y_2_quadcopter.pdf',
                               title='predicted y dim 2')
             # plot_contourf(xx, yy, y_mu.reshape(xx.shape), y_var.reshape(xx.shape), title='predicted y')
             # TODO: how to plot variance of GPs??
@@ -501,3 +540,147 @@ def plot_model_2d_uav(m,
                           lik_var.reshape(xx.shape),
                           f_var.reshape(xx.shape),
                           title='noise variance vs GP covariance')
+
+
+def plot_and_save_all(m, X, a_true=None):
+    import datetime
+    from pathlib import Path
+    date = datetime.datetime.now()
+    date_str = str(date.day) + "-" + str(date.month) + "/" + str(
+        date.time()) + "/"
+    save_dirname = '../images/model/' + date_str
+    Path(save_dirname).mkdir(parents=True, exist_ok=True)
+
+    N = 100
+    x1_high = m.X.value[:, 0].max()
+    x2_high = m.X.value[:, 1].max()
+    x1_low = m.X.value[:, 0].min()
+    x2_low = m.X.value[:, 1].min()
+
+    xx, yy = np.mgrid[x1_low:x1_high:N * 1j, x2_low:x2_high:N * 1j]
+    # Need an (N, 2) array of (x, y) pairs.
+    xy = np.column_stack([xx.flat, yy.flat])
+
+    # rescale inputs
+    xx = xx * X.std() + X.mean()
+    yy = yy * X.std() + X.mean()
+    Y = m.Y.value
+
+    plt.quiver(X[:, 0],
+               X[:, 1],
+               Y[:, 0],
+               np.zeros([*Y[:, 0].shape]),
+               angles='xy',
+               scale_units='xy',
+               width=0.001,
+               scale=1,
+               zorder=10)
+    plt.title('dx')
+    plt.savefig(save_dirname + 'quiver.pdf', transparent=True)
+
+    a_mu, a_var = m.predict_a(xy)  # Predict alpha values at test locations
+    axs = plot_mean_and_var(
+        xx,
+        yy,
+        a_mu.reshape(xx.shape),
+        a_var.reshape(xx.shape),
+        # a_true=a_true,
+        title="alpha")
+    plt.savefig(save_dirname + 'alpha.pdf', transparent=True)
+    a_mu = a_mu * Y.std() + Y.mean()
+    a_var = a_var * Y.std() + Y.mean()
+    axs = plot_mean_and_var(
+        xx,
+        yy,
+        a_mu.reshape(xx.shape),
+        a_var.reshape(xx.shape),
+        # a_true=a_true,
+        title="alpha standardised")
+    plt.savefig(save_dirname + 'alpha_standardised.pdf', transparent=True)
+
+    h_mu, h_var = m.predict_h(xy)
+    axs = plot_mean_and_var(
+        xx,
+        yy,
+        h_mu.reshape(xx.shape),
+        h_var.reshape(xx.shape),
+        # a_true=a_true,
+        title="h")
+    plt.savefig(save_dirname + 'h.pdf', transparent=True)
+    h_mu = h_mu * Y.std() + Y.mean()
+    h_var = h_var * Y.std() + Y.mean()
+    axs = plot_mean_and_var(
+        xx,
+        yy,
+        h_mu.reshape(xx.shape),
+        h_var.reshape(xx.shape),
+        # a_true=a_true,
+        title="h standardised")
+    plt.savefig(save_dirname + 'h_standardised.pdf', transparent=True)
+
+    f_mus, f_vars = m.predict_f(xy)
+    for i, (f_mu, f_var) in enumerate(zip(f_mus, f_vars)):
+        i = i + 1
+        plot_mean_and_var(xx,
+                          yy,
+                          f_mu[:, 0].reshape(xx.shape),
+                          f_var[:, 0].reshape(xx.shape),
+                          title=('$f_%i$ dim 1' % i))
+        plt.savefig(save_dirname + 'f' + str(i) + '_dim_1.pdf',
+                    transparent=True)
+        try:
+            plot_mean_and_var(xx,
+                              yy,
+                              f_mu[:, 1].reshape(xx.shape),
+                              f_var[:, 1].reshape(xx.shape),
+                              title=('$f_%i$ dim 2' % i))
+            plt.savefig(save_dirname + 'f' + str(i) + '_dim_2.pdf',
+                        transparent=True)
+        except IndexError:
+            print('only one output dimension')
+
+    y_mu, y_var = m.predict_y(xy)
+    plot_mean_and_var(xx,
+                      yy,
+                      y_mu[:, 0].reshape(xx.shape),
+                      y_var[:, 0].reshape(xx.shape),
+                      title='y dim 1')
+    plt.savefig(save_dirname + 'y_dim_1.pdf', transparent=True)
+
+    try:
+        plot_mean_and_var(xx,
+                          yy,
+                          y_mu[:, 1].reshape(xx.shape),
+                          y_var[:, 1].reshape(xx.shape),
+                          title='y dim 2')
+        plt.savefig(save_dirname + 'y_dim_2.pdf', transparent=True)
+    except IndexError:
+        print('only one output dimension')
+
+    # if var is True:
+    #     lik_var, f_var = m.predict_vars(xy)
+    #     plot_contourf_var(xx,
+    #                       yy,
+    #                       lik_var.reshape(xx.shape),
+    #                       f_var.reshape(xx.shape),
+    #                       title='noise variance vs GP covariance')
+
+
+def plot_mean_and_var(x, y, z_mu, z_var, a=None, a_true=None, title=""):
+    # fig, axs = plt.subplot(2, sharex=True, sharey=True)
+    fig, axs = plt.subplots(1, 2, figsize=(24, 4))
+    plt.subplots_adjust(wspace=0, hspace=0)
+
+    surf_mu, cont_mu = plot_contour(axs[0], x, y, z_mu, a)
+    cbar = fig.colorbar(surf_mu, shrink=0.5, aspect=5, ax=axs[0])
+    cbar.set_label('mean')
+    surf_var, cont_var = plot_contour(axs[1], x, y, z_var, a)
+    cbar = fig.colorbar(surf_var, shrink=0.5, aspect=5, ax=axs[1])
+    cbar.set_label('variance')
+    plt.suptitle(title)
+
+    # if a_true is not None:
+    #     axs[0].plot(a_true[0], a_true[1], 'k')
+    #     axs[1].plot(a_true[0], a_true[1], 'k')
+
+    return axs

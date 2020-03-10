@@ -1,9 +1,9 @@
-import gpflow
 import numpy as np
-import tensorflow as tf
-from gpflow import settings
 
+import gpflow
+import tensorflow as tf
 from gen_data import func, func1, func2, gen_data
+from gpflow import settings
 from trainer import train_model
 from utils import plot_contourf, plot_model_2d_uav
 
@@ -59,7 +59,7 @@ alpha = m.predict_a(X)  # mean and var of alpha
 lengthscales = m.kern_h.lengthscales.value
 variance = m.kern_h.variance.value
 
-np.savez('saved_models/params', l=lengthscales, var=variance, x=X, a=alpha)
+np.savez('../saved_models/params', l=lengthscales, var=variance, x=X, a=alpha)
 # #  filename = './saved_models/fake_alpha_for_opt'
 
 # # session = gpflow.get_default_session()

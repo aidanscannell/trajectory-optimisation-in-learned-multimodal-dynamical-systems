@@ -94,3 +94,10 @@ docs/_build/
 docs/build/    
 
 */superseeded/
+
+BMNSVGP/saved_models
+# data/csv
+BMNSVGP/utils/__pycache__/*
+data/scripts/images
+images
+superseeded

@@ -209,6 +209,8 @@ class BMNSVGP(Model):
                            [num_samples, -1])  # [num_samples x num_data]
         p_y = []
         for f_mean, variance in zip(f_means, self.likelihood.variances):
+            # jitter = 1e-3
+            # variance += tf.eye(2, dtype=float_type) * jitter
             dist_y = tfp.distributions.MultivariateNormalFullCovariance(
                 loc=f_mean, covariance_matrix=variance)
             py = dist_y.prob(self.Y)  # [num_data, ]
@@ -265,9 +267,15 @@ class BMNSVGP(Model):
                                    self.q_sqrt_h)
 
         # Lets get conditional p(h_n | U_h, x_n) for all N
-        h_mean, h_var = self._build_predict_h(self.X,
-                                              full_cov=False,
-                                              full_output_cov=False)
+        h_mean, h_var = self._build_predict_h(
+            self.X,
+            full_cov=False,
+            # full_cov=True,
+            full_output_cov=False)
+
+        # h_var = h_var + tf.eye(self.num_inducing, dtype=float_type) * 1e-5
+        # dist_h = tfp.distributions.MultivariateNormalFullCovariance(
+        #     loc=h_mean, covariance_matrix=h_var)
         dist_h = tfp.distributions.Normal(loc=h_mean, scale=h_var)
 
         KL_f = 0

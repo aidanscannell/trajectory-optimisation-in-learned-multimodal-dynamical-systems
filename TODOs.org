@@ -2,7 +2,8 @@
 :PROPERTIES:
 :DESCRIPTION: TODOs for BMNSVGP project
 :END:
-** TODO Auto select number of inducing points
+** DONE Auto select number of inducing points
+CLOSED: [2020-02-19 Wed 10:19]
  
   <2019-11-05 Tue>
   [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/model.py::M%20=%2050]]
@@ -31,3 +32,4 @@
  
  <2020-01-24 Fri>
  [[file:~/Developer/python-projects/BMNSVGP/BMNSVGP/geodesic_func.py][file:~/Developer/python-projects/BMNSVGP/BMNSVGP/geodesic_func.py]]
+* TODO add mean function to mu in calc_G

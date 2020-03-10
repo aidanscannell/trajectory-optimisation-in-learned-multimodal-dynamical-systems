@@ -78,7 +78,9 @@ class BMNSVGP(Model):
         self.kern_h = SquaredExponentialDerivative(self.input_dim, ARD=True)
         feat = None
         M = 50
-        M = int(np.ceil(np.log(self.num_data)**self.input_dim))
+        # M = int(np.ceil(np.log(self.num_data)**self.input_dim))
+        M = 200
+        self.num_inducing = M
         # M = np.log(self.num_data) / np.log(self.input_dim)
         print("Using %i inducing points." % M)
         idx = np.random.choice(range(self.num_data), size=M, replace=False)
@@ -416,4 +418,5 @@ class BMNSVGP(Model):
         a_mean, a_var = self.likelihood.predict_mean_and_var_a(h_mean, h_var)
         y_mean = y_means[0] * (1 - a_mean) + y_means[1] * a_mean
         y_var = y_vars[0] * (1 - a_mean) + y_vars[1] * a_mean
+        # TODO Account for cross covariance in y_var
         return y_mean, y_var

@@ -11,12 +11,8 @@ x_alpha = np.array([-345, -332, 1836, 1834, -345]) / 1000
 y_alpha = np.array([-551, 1954, 1943, -586, -551]) / 1000
 
 # rotation and translation of start positions
-# angles = [0, -np.pi / 2, np.pi / 2, np.pi]
-# angles = [np.pi / 2, 0., np.pi, np.pi]
-# angles = [np.pi / 2, np.pi, 0, np.pi]  # 19dec 1
 angles = [np.pi / 2, np.pi, 0, -np.pi / 2]
 angles = [np.pi / 2, np.pi, 0, 0]
-# angles = [np.pi / 2, 0, np.pi, -np.pi / 2]
 
 # angles = [np.pi, np.pi, np.pi, np.pi]  # 20dec 1
 translations_x = np.array([-1981, -1905, 3086, 3035]) / 1000
@@ -111,21 +107,10 @@ def calc_error(data_dict, step, tello_x, tello_y):
     # dz_sum = 0
     counter = 0
     tello_zero_idx = []
-    # print('inside')
-    # print(int(data_dict['vicon_x'][0] * 1000))
     n_steps = 1
     for i in range(1, tello_x.shape[0] - 1)[::step]:
-        # print('vicon_rz')
-        # print(data_dict['vicon_rz'][i])
-        # print('tello_rz')
-        # print(data_dict['tello_rz'][i])
         diff_rz = data_dict['vicon_rz'][i] - data_dict['tello_rz'][i]
         drz[counter] = abs(diff_rz)
-        # print('diff_rz')
-        # print(diff_rz)
-        # if i == 1:
-        # print(tello_x[i])
-        # print(data_dict['vicon_x'][0])
         if int(tello_x[i] * 1) == int(data_dict['vicon_x'][0] * 1) and int(
                 tello_y[i] * 1) == int(data_dict['vicon_y'][0] * 1):
             # if int(tello_x[i] * 100) == int(data_dict['vicon_x'][0] * 100) or int(

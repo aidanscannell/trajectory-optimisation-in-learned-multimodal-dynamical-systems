@@ -21,7 +21,7 @@ from gpflow import (autoflow, features, kullback_leiblers, params_as_tensors,
                     settings, transforms)
 from gpflow.conditionals import Kuu, conditional
 # from gpflow.decors import autoflow, params_as_tensors
-from gpflow.mean_functions import Zero
+from gpflow.mean_functions import Constant, Zero
 from gpflow.models.model import Model
 from gpflow.multioutput import features as mf
 from gpflow.multioutput import kernels as mk
@@ -72,7 +72,8 @@ class BMNSVGP(Model):
         # self.whiten = False
 
         # init separation GP
-        self.mean_function_h = Zero(output_dim=1)
+        # self.mean_function_h = Zero(output_dim=1)
+        self.mean_function_h = Constant()
         # self.kern_h = gpflow.kernels.RBF(input_dim=self.input_dim, ARD=True)
         self.kern_h = SquaredExponentialDerivative(self.input_dim, ARD=True)
         feat = None
@@ -99,7 +100,8 @@ class BMNSVGP(Model):
         # TODO: change 2 to the number of dynamics GPs
         for i in range(2):
             # init mean functions
-            mean_functions.append(Zero(output_dim=self.output_dim))
+            mean_functions.append(Constant())
+            # mean_functions.append(Zero(output_dim=self.output_dim))
 
             # Create list of kernels for each output
             kern_list = [

@@ -78,8 +78,8 @@ class BMNSVGP(Model):
         self.kern_h = SquaredExponentialDerivative(self.input_dim, ARD=True)
         feat = None
         M = 50
-        # M = int(np.ceil(np.log(self.num_data)**self.input_dim))
-        M = 200
+        M = int(np.ceil(np.log(self.num_data)**self.input_dim))
+        # M = 200
         self.num_inducing = M
         # M = np.log(self.num_data) / np.log(self.input_dim)
         print("Using %i inducing points." % M)

@@ -99,8 +99,9 @@ class BMNSVGP(Model):
         kernels, mean_functions, feat_list, q_mus, q_sqrts = [], [], [], [], []
 
         # init dynamics GPs for each mode
+        self.num_dynamics_gps = 2
         # TODO: change 2 to the number of dynamics GPs
-        for i in range(2):
+        for i in range(self.num_dynamics_gps):
             # init mean functions
             mean_functions.append(Constant())
             # mean_functions.append(Zero(output_dim=self.output_dim))

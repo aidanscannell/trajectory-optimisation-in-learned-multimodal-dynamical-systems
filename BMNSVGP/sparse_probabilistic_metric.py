@@ -1,153 +1,120 @@
+import os
+import sys
+
 import jax.numpy as np
 import jax.scipy as sp
-from jax import jit, partial, vmap, jacfwd, hessian
-# import numpy as np
-# from utils.visualise_metric import create_grid, plot_mean_and_var
 import matplotlib.pyplot as plt
-from matplotlib import cm
-# import gpflow as gpf
-
 from derivative_kernel_gpy import DiffRBF
+from jax import jacfwd, jit, partial, vmap
 from probabilistic_geodesic import value_and_jacfwd
+# from matplotlib import cm
+from utils.metric_utils import (create_grid, init_save_path, plot_gradient,
+                                plot_mean_and_var, plot_mean_and_var_contour,
+                                plot_metric_trace)
 
 global jitter
 jitter = 1e-4
 
 
+def Kuu(inducing_inputs, kernel, jitter=1e-4):
+    Kzz = kernel.K(inducing_inputs, inducing_inputs)
+    Kzz += jitter * np.eye(len(inducing_inputs), dtype=Kzz.dtype)
+    return Kzz
+
+
+def Kuf(inducing_inputs, kernel, Xnew):
+    return kernel.K(inducing_inputs, Xnew)
+
+
 @partial(jit, static_argnums=(1, 2, 3, 4, 5, 6, 7))
 def single_sparse_gp_derivative_predict(x_star, X, z, q_mu, q_sqrt, kernel,
                                         mean_func, m_h_mu):
-    def Ksparse(x1, x2, z, q_mu, q_sqrt, kernel, mean_func):
-        Kmm = Kuu(z, kernel)
-        Kmn = Kuf(z, kernel, x2)
-        Knm = Kuf(x1, kernel, z)
-        Knn = kernel.K(x1, x2)
-        Lm = sp.linalg.cholesky(Kmm, lower=True)
-        A = sp.linalg.solve_triangular(Lm, Kmn, lower=True)
-        # A = sp.linalg.solve_triangular(Lm, A, lower=True)
+    def Kvar(x1, x2, z, q_mu, q_sqrt, kernel, mean_func):
+        k_uu = Kuu(z, kernel)
+        k_1u = Kuf(x1, kernel, z)
+        k_u2 = Kuf(z, kernel, x2)
+        k_ff = kernel.K(x1, x2)
+        # print(np.count_nonzero(np.isnan(k_uu)))
+        # print(np.count_nonzero(np.isnan(k_1u)))
+        # print(np.count_nonzero(np.isnan(k_u2)))
+        # print(np.count_nonzero(np.isnan(k_ff)))
 
-        fvar = Knn - A.T @ A
+        Lu = sp.linalg.cholesky(k_uu, lower=True)
+        A1 = sp.linalg.solve_triangular(Lu, k_1u.T, lower=True)
+        A2 = sp.linalg.solve_triangular(Lu, k_u2, lower=True)
+        ATA = A1.T @ A2
 
-        q_sqrt = np.squeeze(q_sqrt)
-        LTA = q_sqrt @ A
-        fvar = fvar + LTA.T @ LTA
-        return fvar
+        Ls = np.squeeze(q_sqrt)
+
+        # LLSLLST = A1.T @ LLS @ LLS.T @ A2
+        LTA1 = Ls @ A1
+        LTA2 = Ls @ A2
+
+        cov = k_ff - ATA + LTA1.T @ LTA2
+        return cov
 
     num_data = X.shape[0]
     # TODO add mean_func to q_mu
 
     x_star = x_star.reshape(-1, 2)
 
-    d2k = jacfwd(Ksparse, (0, 1))(x_star, x_star, z, q_mu, q_sqrt, kernel,
-                                  mean_func)
+    k_uu = Kuu(z, kernel)
+    k_su = Kuf(X, kernel, z)
+    Lu = sp.linalg.cholesky(k_uu, lower=True)
+    A1 = sp.linalg.solve_triangular(Lu, k_su.T, lower=True)
+
+    d2k = jacfwd(Kvar, (0, 1))(x_star, x_star, z, q_mu, q_sqrt, kernel,
+                               mean_func)
     d2k0 = np.squeeze(d2k[0])
     d2k1 = np.squeeze(d2k[1])
     d2k = np.array([d2k0, d2k1])
     print("d2k")
     print(d2k.shape)
 
-    Kxx = Ksparse(X, X, z, q_mu, q_sqrt, kernel, mean_func)
+    Kxx = Kvar(X, X, z, q_mu, q_sqrt, kernel, mean_func)
     Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
     print("kxx")
     print(Kxx.shape)
-
-    Kxs = Ksparse(X, x_star, z, q_mu, q_sqrt, kernel, mean_func)
-    Kxs = Kxs + jitter * np.eye(Kxs.shape[0])
-    print("kxs")
-    print(Kxs.shape)
-
     chol = sp.linalg.cholesky(Kxx, lower=True)
     print("chol")
     print(chol.shape)
-    # print('q_mu.shape')
-    # print(q_mu.shape)
 
-    # calculate mean of GP (h)
-    Kmm = Kuu(z, kernel)
-    Kmm = Kmm + jitter * np.eye(Kmm.shape[0])
-    Knm = Kuf(X, kernel, z)
-    print('Kmm')
-    print(Kmm.shape)
-    print('Knm')
-    print(Knm.shape)
-    chol_mm = sp.linalg.cholesky(Kmm, lower=True)
-    print('chol_mm.shape')
-    print(chol_mm.shape)
-    iK_qmu = sp.linalg.solve_triangular(
-        chol_mm.T, sp.linalg.solve_triangular(chol_mm, q_mu, lower=True))
-    print("iK_qmu.shape")
-    print(iK_qmu.shape)
-    mu_h = mean_func + Knm @ iK_qmu
-    # mu_h = Knm @ iK_qmu
-    print('mu_h')
-    # print(mu_h)
-    print(mu_h.shape)
-
-    Kmm = Kuu(z, kernel)
-    Kmn = Kuf(z, kernel, X)
-    Knn = kernel.K(X, X)
-    Lm = sp.linalg.cholesky(Kmm, lower=True)
-    A = sp.linalg.solve_triangular(Lm, Kmn, lower=True)
-    fmean = A.T @ q_mu
-    fmean = fmean + mean_func
-    mu_h = fmean
-
-    dkxs = jacfwd(Ksparse, 1)(X, x_star, z, q_mu, q_sqrt, kernel, mean_func)
+    dkxs = jacfwd(Kvar, 1)(X, x_star, z, q_mu, q_sqrt, kernel, mean_func)
     print('dkxs')
     print(dkxs.shape)
     dkxs = dkxs.reshape(num_data, 2)
     print('dkxs')
     print(dkxs.shape)
+    # dkxs += jitter * np.eye(dkxs.shape[1])
+
+    A = sp.linalg.solve_triangular(chol, dkxs, lower=True)
 
     # TODO should both derivatives be wrt to x_star???
     dksx = dkxs.T
-    # dksx = jacfwd(Ksparse, 0)(x_star, X, z, q_mu, q_sqrt, kernel, mean_func)
-    # print('dksx')
-    # print(dksx.shape)
-    # dksx = dksx.reshape(num_data, 2)
-    # print('dkxs')
-    # print(dksx.shape)
 
-    # iKh = sp.linalg.solve_triangular(
-    #     chol.T, sp.linalg.solve_triangular(chol, mu_h, lower=True))
-    print('aaaa')
-    # print(m_h_mu)
-    print(m_h_mu.shape)
-    print(chol.shape)
-    m_h_mu += mean_func
-    iKh = sp.linalg.solve_triangular(
-        chol.T, sp.linalg.solve_triangular(chol, m_h_mu, lower=True))
-    print("iKh.shape")
-    print(iKh.shape)
-    mu_j = dkxs.T @ iKh
-    print('mu_j')
-    print(mu_j.shape)
-
-    # # Lm = sp.linalg.cholesky(Kmm, lower=True)
-    # A = sp.linalg.solve_triangular(chol, dkxs, lower=True)
-    # print('new A')
-    # print(A.shape)
-    # mu_j = A.T @ mu_h
-    # print('new mu_j')
-    # print(mu_j.shape)
-
-    v = sp.linalg.solve_triangular(chol, dkxs, lower=True)
-
-    # l2 = kernel.lengthscale**2
-    # l2 = np.diag(l2)
-    # d2k_dtt = -l2 * kernel.K(xy, xy)
+    print("A")
+    print(A.shape)
+    print(A1.shape)
+    print(q_mu.shape)
+    print(mean_func.shape)
+    mu_h = A1.T @ (q_mu - 0.)
+    mu_h += mean_func
+    print(mu_h.shape)
 
     # calculate mean and variance of J
     # print("kinvy")
     # print(kinvy.shape)
     # mu_j = np.dot(dk_dtT, kinvy)
+    mu_j = A.T @ mu_h
     # mu_j = mean_func * np.ones([2, 1])
     # print("mu_j")
     # print(mu_j.shape)
     # TODO does all of d2k need to be calculated for sparse GP
-    cov_j = d2k - np.matmul(v.T, v)  # d2K doesn't need to be calculated
+    # TODO should this be plus or minus
+    cov_j = d2k + A.T @ A  # d2K doesn't need to be calculated
     print("cov_j")
     print(cov_j.shape)
+
     return mu_j, cov_j
 
 
@@ -195,8 +162,8 @@ def calc_G_map_sparse(c, X, z, q_mu, q_sqrt, kernel, mean_func, m_h_mu):
 
     jTj = np.matmul(mu_j, mu_jT)  # [input_dim x input_dim]
     assert jTj.shape == (input_dim, input_dim)
-    var_weight = 1.
-    # var_weight = 0.1
+    # var_weight = 1.
+    var_weight = 0.1
     G = jTj + var_weight * output_dim * cov_j  # [input_dim x input_dim]
     assert G.shape == (input_dim, input_dim)
     return G, mu_j, cov_j
@@ -262,15 +229,55 @@ def calc_G_map_sparse(c, X, z, q_mu, q_sqrt, kernel, mean_func, m_h_mu):
 #     assert G.shape == (input_dim, input_dim)
 #     return G, mu_j, cov_j
 
+# def Kuu(inducing_inputs, kernel, jitter=1e-4):
+#     Kzz = kernel.K(inducing_inputs, inducing_inputs)
+#     Kzz += jitter * np.eye(len(inducing_inputs), dtype=Kzz.dtype)
+#     return Kzz
 
-def Kuu(inducing_inputs, kernel, jitter=1e-4):
-    Kzz = kernel.K(inducing_inputs, inducing_inputs)
-    Kzz += jitter * np.eye(len(inducing_inputs), dtype=Kzz.dtype)
-    return Kzz
+# def Kuf(inducing_inputs, kernel, Xnew):
+#     return kernel.K(inducing_inputs, Xnew)
+
+# def gp_predict_sparse(x_star, z, mean_func, q_mu, q_sqrt, kernel, jitter=1e-8):
+#     Kmm = Kuu(z, kernel)
+#     Kmn = Kuf(z, kernel, x_star)
+#     Knn = kernel.K(x_star, x_star)
+#     Lm = sp.linalg.cholesky(Kmm, lower=True)
+#     A = sp.linalg.solve_triangular(Lm, Kmn, lower=True)
+
+#     fmean = A.T @ q_mu
+#     fmean = fmean + mean_func
+
+#     # fvar = Knn - np.sum(np.square(A))
+#     fvar = Knn - A.T @ A
+#     q_sqrt = np.squeeze(q_sqrt)
+#     LTA = q_sqrt @ A
+#     # fvar = Knn + LTA.T @ LTA
+#     # fvar = fvar + LTA.T @ LTA
+
+#     return fmean, fvar
 
 
-def Kuf(inducing_inputs, kernel, Xnew):
-    return kernel.K(inducing_inputs, Xnew)
+def gp_predict(x_star, X, Y, kernel, mean_func=0., jitter=1e-4):
+    num_data = X.shape[0]
+
+    Kxx = kernel.K(X, X)
+    Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
+    chol = sp.linalg.cholesky(Kxx, lower=True)
+    assert chol.shape == (num_data, num_data)
+    kinvy = sp.linalg.solve_triangular(
+        chol.T, sp.linalg.solve_triangular(chol, Y, lower=True))
+    assert kinvy.shape == (num_data, 1)
+
+    # calculate mean and variance of J
+    Kxs = kernel.K(X, x_star)
+    mu = np.dot(Kxs.T, kinvy)
+
+    Kss = kernel.K(x_star, x_star)
+    v = sp.linalg.solve_triangular(chol, Kxs, lower=True)
+    vT = v.T
+    cov = Kss - np.matmul(vT, v)
+    mu = mu + mean_func
+    return mu, cov
 
 
 def gp_predict_sparse(x_star, z, mean_func, q_mu, q_sqrt, kernel, jitter=1e-8):
@@ -287,68 +294,42 @@ def gp_predict_sparse(x_star, z, mean_func, q_mu, q_sqrt, kernel, jitter=1e-8):
     fvar = Knn - A.T @ A
     q_sqrt = np.squeeze(q_sqrt)
     LTA = q_sqrt @ A
-    # fvar = Knn + LTA.T @ LTA
-    # fvar = fvar + LTA.T @ LTA
+    fvar = fvar + LTA.T @ LTA
 
     return fmean, fvar
 
 
-def gp_predict_sparse_LTA(x_star,
+def gp_predict_sparse_sym(x1,
+                          x2,
                           z,
                           mean_func,
                           q_mu,
                           q_sqrt,
                           kernel,
                           jitter=1e-8):
-    Kmm = Kuu(z, kernel)
-    Kmn = Kuf(z, kernel, x_star)
-    Knn = kernel.K(x_star, x_star)
-    Lm = sp.linalg.cholesky(Kmm, lower=True)
-    A = sp.linalg.solve_triangular(Lm, Kmn, lower=True)
+    k_uu = Kuu(z, kernel)
+    k_1u = Kuf(x1, kernel, z)
+    k_u2 = Kuf(z, kernel, x2)
+    k_ff = kernel.K(x1, x2)
 
-    fmean = A.T @ q_mu
-    fmean = fmean + mean_func
+    Lu = sp.linalg.cholesky(k_uu, lower=True)
+    A1 = sp.linalg.solve_triangular(Lu, k_1u.T, lower=True)
+    A2 = sp.linalg.solve_triangular(Lu, k_u2, lower=True)
+    ATA = A1.T @ A2
 
-    # fvar = Knn - np.sum(np.square(A))
-    fvar = Knn - A.T @ A
-    q_sqrt = np.squeeze(q_sqrt)
-    LTA = q_sqrt @ A
-    fvar = fvar + LTA.T @ LTA
-    # fvar = fvar + LTA.T @ LTA
+    Ls = np.squeeze(q_sqrt)
+    # LLS = sp.linalg.solve_triangular(Lu, Ls, lower=True)
+    # LLSLLST = A1.T @ LLS @ LLS.T @ A2
+
+    LTA1 = Ls @ A1
+    LTA2 = Ls @ A2
+
+    fvar = k_ff - ATA + LTA1.T @ LTA2
+
+    fmean = A1.T @ (q_mu - 0.)
+    fmean += mean_func
 
     return fmean, fvar
-
-
-def gp_predict(x_star, X, Y, kernel, mean_func=0., jitter=1e-4):
-    num_data = X.shape[0]
-    # input_dim = X.shape[1]
-
-    Kxx = kernel.K(X, X)
-    # print(Kxx.shape)
-    Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
-    chol = sp.linalg.cholesky(Kxx, lower=True)
-    assert chol.shape == (num_data, num_data)
-    kinvy = sp.linalg.solve_triangular(
-        chol.T, sp.linalg.solve_triangular(chol, Y, lower=True))
-    assert kinvy.shape == (num_data, 1)
-
-    # calculate mean and variance of J
-    Kxs = kernel.K(X, x_star)
-    # print(x_star.shape)
-    # print(Kxs.shape)
-    mu = np.dot(Kxs.T, kinvy)
-    # print(mu_j.shape)
-    # assert mu_j.shape == (input_dim, 1)
-
-    Kss = kernel.K(x_star, x_star)
-    v = sp.linalg.solve_triangular(chol, Kxs, lower=True)
-    # assert v.shape == (num_data, input_dim)
-    vT = v.T
-    cov = Kss - np.matmul(vT, v)
-    # assert cov_j.shape == (input_dim, input_dim)
-    # cov *= 100
-    mu = mu + mean_func
-    return mu, cov
 
 
 def load_data_and_init_kernel(filename):
@@ -379,79 +360,19 @@ def load_data_and_init_kernel(filename):
     return X, Y, h_mu, h_var, z, q_mu, q_sqrt, kernel, mean_func, xx, yy, xy, m_h_mu, m_h_var
 
 
-def plot_contour(ax, x, y, z, a=None, contour=None):
-    # surf = ax.contourf(x, y, z, cmap=cm.cool, linewidth=0, antialiased=False)
-    print('inside')
-    print(x.shape)
-    print(y.shape)
-    print(z.shape)
-    surf = ax.contourf(x,
-                       y,
-                       z,
-                       cmap=cm.coolwarm,
-                       linewidth=0,
-                       antialiased=False)
-    cont = None
-    if contour is not None and a is not None:
-        cont = ax.contour(x, y, a, levels=contour)
-    if contour is not None and a is None:
-        cont = ax.contour(x, y, z, levels=contour)
-    # if inputs is True:
-    #     # plt.plot(x.flatten(), y.flatten(), 'xk')
-    #     plt.plot(X_[:, 0], X_[:, 1], 'xk')
-    # plt.xlim(-2, 2)
-    # plt.ylim(-2, 2)
-    return surf, cont
-
-
-def plot_mean_and_var_contour(x, y, z_mu, z_var, a=None, a_true=None,
-                              title=""):
-    # fig, axs = plt.subplot(2, sharex=True, sharey=True)
-    fig, axs = plt.subplots(1, 2, figsize=(24, 4))
-    plt.subplots_adjust(wspace=0, hspace=0)
-
-    surf_mu, cont_mu = plot_contour(axs[0], x, y, z_mu, a)
-    cbar = fig.colorbar(surf_mu, shrink=0.5, aspect=5, ax=axs[0])
-    cbar.set_label('mean')
-    surf_var, cont_var = plot_contour(axs[1], x, y, z_var, a)
-    cbar = fig.colorbar(surf_var, shrink=0.5, aspect=5, ax=axs[1])
-    cbar.set_label('variance')
-    plt.suptitle(title)
-
-    # if a_true is not None:
-    #     axs[0].plot(a_true[0], a_true[1], 'k')
-    #     axs[1].plot(a_true[0], a_true[1], 'k')
-
-    return axs
-
-
 if __name__ == "__main__":
-    # x_alpha = np.array([-345, -332, 1836, 1834, -345]) / 1000
-    # y_alpha = np.array([-551, 1954, 1943, -586, -551]) / 1000
-    # global m_h_mu
-
     X, Y, h_mu, h_var, z, q_mu, q_sqrt, kernel, mean_func, xx, yy, xy, m_h_mu, m_h_var = load_data_and_init_kernel(
-        filename='saved_models/27-2/137/params_from_model.npz')
+        # filename='saved_models/27-2/137/params_from_model.npz')
+        filename='./saved_models/model-fake-data/1210/params_from_model.npz')
     # filename='saved_models/26-2/1247/params_from_model.npz')
     # filename='saved_models/20-2/189/params_from_model.npz')
 
-    # def inv_probit(x):
-    #     jitter = 1e-3  # ensures output is strictly between 0 and 1
-    #     return 0.5 * (1.0 + sp.special.erf(x / np.sqrt(2.0))) \
-    #         * (1 - 2 * jitter) + jitter
-
-    # xy, xx, yy = create_grid(X, N=961)
-    # xy, xx, yy = create_grid(X, N=100)
-    # print('Calculating trace of metric, cov_j and mu_j...')
-    # G, mu_j, cov_j = vmap(calc_G_map, in_axes=(0, None, None, None))(xy, X, Y,
-    #                                                                  kernel)
-    # print('Done calculating metric')
+    save_path = init_save_path()
 
     mu_j_sparse, cov_j_sparse = sparse_gp_derivative_predict(
         xy, X, z, q_mu, q_sqrt, kernel, mean_func, m_h_mu)
     print('sfas')
 
-    # axs = plot_mean_and_var(xy, mu, var)
     print(h_mu.shape)
     print(h_var.shape)
     print(q_mu.shape)
@@ -461,65 +382,57 @@ if __name__ == "__main__":
     print(xx.shape)
     print(yy.shape)
     print(xy.shape)
+
     axs = plot_mean_and_var_contour(xx, yy, h_mu.reshape(xx.shape),
                                     h_var.reshape(xx.shape))
-    plt.suptitle('h learned and predicted from BMNSVGP')
-    # axs = plot_mean_and_var_contour(xy[:, 0], xy[:, 1], h_mu, h_var)
+    plt.suptitle('Original GP - predicted using BMNSVGP')
+    axs = plot_mean_and_var(X, m_h_mu, m_h_var)
+    plt.suptitle('Original GP - predicted using BMNSVGP')
+    plt.savefig(save_path + 'original_gp.pdf', transparent=True)
 
-    mu, var = gp_predict(xy, X, m_h_mu, kernel, mean_func=mean_func)
-    var = np.diag(var).reshape(-1, 1)
-    axs = plot_mean_and_var(xy, mu, var)
-    plt.suptitle("Full GP prediction func")
+    # mu, var = gp_predict(xy, X, m_h_mu, kernel, mean_func=mean_func)
+    # var = np.diag(var).reshape(-1, 1)
+    # axs = plot_mean_and_var(xy, mu, var)
+    # plt.suptitle("Full GP prediction func")
 
-    # print(z.shape)
-    # z[:, [0, 1]] = z[:, [1, 0]]
-    mu, var = gp_predict_sparse(xy,
-                                z,
-                                mean_func,
-                                q_mu,
-                                q_sqrt,
-                                kernel,
-                                jitter=1e-4)
-    var = np.diag(var).reshape(-1, 1)
-    axs_sparse = plot_mean_and_var(xy, mu, var)
-    plt.scatter(z[:, 0], z[:, 1])
-    plt.suptitle("Sparse GP prediction func")
+    # mu, var = gp_predict_sparse(xy, z, mean_func, q_mu, q_sqrt, kernel)
+    # var = np.diag(var).reshape(-1, 1)
+    # axs_sparse = plot_mean_and_var(xy, mu, var)
+    # plt.scatter(z[:, 0], z[:, 1])
+    # plt.suptitle("Sparse GP prediction func")
+    # axs = plot_mean_and_var_contour(xx, yy, mu.reshape(xx.shape),
+    #                                 var.reshape(xx.shape))
+    # plt.suptitle("Sparse GP prediction func")
 
-    mu, var = gp_predict_sparse(xy,
-                                z,
-                                mean_func,
-                                q_mu,
-                                q_sqrt,
-                                kernel,
-                                jitter=1e-4)
-    var = np.diag(var).reshape(-1, 1)
-    axs = plot_mean_and_var_contour(xx, yy, mu.reshape(xx.shape),
-                                    var.reshape(xx.shape))
-    plt.suptitle("Sparse GP prediction func")
+    # mu_sparse, var_sparse = gp_predict_sparse_LTA(xy, z, mean_func, q_mu,
+    #                                               q_sqrt, kernel)
+    print(xy.shape)
+    mu_sparse, var_sparse = gp_predict_sparse_sym(xy, xy, z, mean_func, q_mu,
+                                                  q_sqrt, kernel)
+    var_sparse = np.diag(var_sparse).reshape(-1, 1)
+    axs = plot_mean_and_var_contour(xx, yy, mu_sparse.reshape(xx.shape),
+                                    var_sparse.reshape(xx.shape))
+    plt.suptitle("Sparse GP prediction func (symmetric K(x,x'))")
 
-    mu, var = gp_predict_sparse_LTA(xy,
-                                    z,
-                                    mean_func,
-                                    q_mu,
-                                    q_sqrt,
-                                    kernel,
-                                    jitter=1e-4)
-    var = np.diag(var).reshape(-1, 1)
-    axs = plot_mean_and_var_contour(xx, yy, mu.reshape(xx.shape),
-                                    var.reshape(xx.shape))
+    mu_sparse, var_sparse = gp_predict_sparse(xy, z, mean_func, q_mu, q_sqrt,
+                                              kernel)
+    var_sparse = np.diag(var_sparse).reshape(-1, 1)
+    axs = plot_mean_and_var(xy, mu_sparse, var_sparse)
     plt.suptitle("Sparse GP prediction func with LTA.T LTA")
+    # plt.show()
+
+    print('Calculating trace of metric, cov_j and mu_j...')
+    G, mu_j, cov_j = vmap(calc_G_map_sparse,
+                          in_axes=(0, None, None, None, None, None, None,
+                                   None))(xy, X, z, q_mu, q_sqrt, kernel,
+                                          mean_func, m_h_mu)
+    print('Done calculating metric')
+
+    var_j = vmap(np.diag, in_axes=(0))(cov_j)
+
+    axs = plot_gradient(xy, mu_j, var_j, mu_sparse, var_sparse, save_path)
     plt.show()
-    # plt.savefig(save_dirname + 'alpha.pdf', transparent=True)
 
-    #     # plot original GP
-    #     xy, xx, yy = create_grid(X, N=961)
-    #     mu, var = gp_predict(xy, X, a_mu, kernel)
-    #     var = np.diag(var).reshape(-1, 1)
-    #     axs = plot_mean_and_var(xy, mu, var)
-    #     plt.suptitle('Original GP')
+    axs = plot_metric_trace(xy, G, mu_sparse, var_sparse, save_path)
 
-    #     xy, xx, yy = create_grid(X, N=961)
-    # axs = plot_gradeint(xy, X, Y, kernel)
-#     axs = plot_metric_trace(xy, X, Y, kernel)
-
-#     plt.show()
+    plt.show()

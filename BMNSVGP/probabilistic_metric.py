@@ -70,9 +70,11 @@ def calc_G_map(c, X, Y, kernel):
     mu_jT = mu_j.T
     # assert mu_jT.shape == (1, input_dim)
 
-    jTj = np.matmul(mu_j, mu_jT)  # [input_dim x input_dim]
-    assert jTj.shape == (input_dim, input_dim)
+    # jTj = np.matmul(mu_j, mu_jT)  # [input_dim x input_dim]
+    jTj = np.matmul(mu_jT, mu_j)  # [input_dim x input_dim]
+    # assert jTj.shape == (input_dim, input_dim)
     var_weight = 0.1
+    var_weight = 0.35
     G = jTj + var_weight * output_dim * cov_j  # [input_dim x input_dim]
     assert G.shape == (input_dim, input_dim)
     return G, mu_j, cov_j

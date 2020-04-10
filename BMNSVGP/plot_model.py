@@ -3,12 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import palettable
 import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-tf.logging.set_verbosity(tf.logging.ERROR)
-# from matplotlib import cm
-
-# from pylab import *
-# import brewer2mpl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def add_arrow(line,
@@ -83,28 +78,28 @@ def plot_contourf(x,
                   cbar_label='',
                   levels=None):
     # fig = plt.figure(figsize=(12, 4))  # no frame
+    flag = False
     if fig is None:
+        flag = True
         fig = plt.figure()  # no frame
         ax = fig.add_subplot(111)
-    # fig, ax = plt.subplots(1, 1, figsize=(12, 4))
-    fig.tight_layout()
-    fig.subplots_adjust(bottom=0.15, left=0.09)
+        fig.tight_layout()
+        fig.subplots_adjust(bottom=0.22, left=0.09)
 
     if tri:
         contf = ax.tricontourf(x, y, z, 100, cmap=cmap)
-        # linewidth=0,
         # antialiased=False,
         # levels=levels)
     else:
-        contf = ax.contourf(x,
-                            y,
-                            z,
-                            cmap=cmap,
-                            linewidth=0,
-                            antialiased=False,
-                            levels=levels)
-    cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
-    cbar.set_label(cbar_label)
+        contf = ax.contourf(x, y, z, cmap=cmap, levels=levels)
+
+    if flag:
+        cbar = fig.colorbar(
+            contf,
+            # shrink=0.5,
+            # aspect=5,
+            ax=ax)
+        cbar.set_label(cbar_label)
 
     if clabel:
         ax.clabel(contf, fmt='%2.1f', colors='k')
@@ -128,7 +123,7 @@ def plot_contourf(x,
     # change xlim to set_xlim
     ax.set_xlim(-1.9, 2)
     ax.set_ylim(-2, 1.5)
-    return fig, ax
+    return contf, ax
 
     # contf = plot_contourf_ax(fig, ax, x, y, z, clabel, cbar_label, levels)
     # return plot_contourf_ax(fig, ax, x, y, z, clabel, cbar_label, levels)
@@ -147,22 +142,42 @@ def plot_mean_and_var(x,
 
     plt.subplots_adjust(wspace=0, hspace=0)
     fig.tight_layout()
-    fig.subplots_adjust(bottom=0.15, left=0.05)
+    fig.subplots_adjust(top=0.85)
 
-    _, ax_mu = plot_contourf(x,
-                             y,
-                             z_mu,
-                             fig,
-                             axs[0],
-                             clabel=clabel,
-                             cbar_label=left_label)
-    _, ax_var = plot_contourf(x,
-                              y,
-                              z_var,
-                              fig,
-                              axs[1],
-                              clabel=clabel,
-                              cbar_label=right_label)
+    contf_mu, ax_mu = plot_contourf(x,
+                                    y,
+                                    z_mu,
+                                    fig,
+                                    axs[0],
+                                    clabel=clabel,
+                                    cbar_label=left_label)
+    divider = make_axes_locatable(axs[0])
+    cax1 = divider.append_axes("top", size="5%", pad=0.05)
+    cbar = fig.colorbar(contf_mu,
+                        cax=cax1,
+                        ax=axs[0],
+                        orientation="horizontal")
+    cbar.set_label(left_label)
+    cax1.xaxis.set_ticks_position('top')
+    cax1.xaxis.set_label_position('top')
+    contf_var, ax_var = plot_contourf(x,
+                                      y,
+                                      z_var,
+                                      fig,
+                                      axs[1],
+                                      clabel=clabel,
+                                      cbar_label=right_label)
+    divider = make_axes_locatable(axs[1])
+    cax2 = divider.append_axes("top", size="5%", pad=0.05)
+    cbar = fig.colorbar(contf_var,
+                        cax=cax2,
+                        ax=axs[1],
+                        orientation="horizontal")
+    cbar.set_label(right_label)
+    cax2.xaxis.set_ticks_position('top')
+    cax2.xaxis.set_label_position('top')
+    # cbar = fig.colorbar(contf_var, ax=axs[1], orientation="horizontal")
+    # cbar.set_label(right_label)
     plt.suptitle(title)
     return fig, (ax_mu, ax_var)
 
@@ -187,12 +202,12 @@ cmap = palettable.scientific.sequential.Bilbao_15.mpl_colormap
 
 # colors = bmap.mpl_colors
 params = {
-    'axes.labelsize': 16,
-    'font.size': 16,
+    'axes.labelsize': 26,
+    'font.size': 26,
     'legend.fontsize': 10,
     'legend.fontsize': 10,
-    'xtick.labelsize': 14,
-    'ytick.labelsize': 14,
+    'xtick.labelsize': 20,
+    'ytick.labelsize': 20,
     'text.usetex': True,
     'figure.figsize': [10, 4]
 }
@@ -226,7 +241,7 @@ fig, ax = plot_contourf(
     clabel=False,
     cbar_label='$P(\\alpha_*=0 | \mathbf{x}_*, \mathcal{D}, \mathbf{\\theta})$',
     levels=bounds)
-fig.savefig(save_path + 'alpha.pdf', transparent=True)
+plt.savefig(save_path + 'alpha.pdf', transparent=True)
 
 data = np.load('../data/npz/turbulence/model_data_fan_fixed_subset.npz')
 X = data['x']
@@ -237,17 +252,22 @@ fig, ax = plot_contourf(X[:, 0],
                         tri=True,
                         clabel=False,
                         cbar_label='$\Delta x$')
-fig.savefig(save_path + 'dataset.pdf', transparent=True)
+plt.savefig(save_path + 'dataset.pdf', transparent=True)
+ax.scatter(X[:, 0], X[:, 1], marker='x', color='k', alpha=0.7, s=0.5)
+num = 380
+line = ax.plot(X[0:num, 0], X[0:num, 1], color='k', alpha=0.5)[0]
+add_arrow(line, color='k', alpha=0.5)
+plt.savefig(save_path + 'dataset-arrow.pdf', transparent=True)
 
 params = {
-    'axes.labelsize': 16,
-    'font.size': 16,
+    'axes.labelsize': 32,
+    'font.size': 32,
     'legend.fontsize': 10,
     'legend.fontsize': 10,
-    'xtick.labelsize': 14,
-    'ytick.labelsize': 14,
+    'xtick.labelsize': 28,
+    'ytick.labelsize': 28,
     'text.usetex': True,
-    'figure.figsize': [20, 4]
+    'figure.figsize': [20, 7]
 }
 plt.rcParams.update(params)
 
@@ -258,7 +278,7 @@ fig, ax = plot_mean_and_var(xx,
                             clabel=False,
                             left_label='$\\mu_{y_*}$',
                             right_label='diag($\\Sigma_{y_*}$)')
-fig.savefig(save_path + 'y_dim_1.pdf', transparent=True)
+plt.savefig(save_path + 'y_dim_1.pdf', transparent=True)
 
 fig, ax = plot_mean_and_var(xx,
                             yy,
@@ -267,7 +287,7 @@ fig, ax = plot_mean_and_var(xx,
                             clabel=False,
                             left_label='$\\mu_{h_*}$',
                             right_label='diag($\\Sigma_{h_*}$)')
-fig.savefig(save_path + 'h.pdf', transparent=True)
+plt.savefig(save_path + 'h.pdf', transparent=True)
 
 for i, (f_mu, f_var) in enumerate(zip(f_mus, f_vars)):
 
@@ -279,26 +299,6 @@ for i, (f_mu, f_var) in enumerate(zip(f_mus, f_vars)):
                                 left_label='$\\mu_{f_' + str(i + 1) + '}$',
                                 right_label='diag($\\Sigma_{f_' + str(i + 1) +
                                 '}$)')
-    fig.savefig(save_path + 'f' + str(i + 1) + '_dim_1.pdf', transparent=True)
+    plt.savefig(save_path + 'f' + str(i + 1) + '_dim_1.pdf', transparent=True)
 
 plt.show()
-
-# fig, ax = plt.subplots(1, 1, figsize=(12, 4))
-# contf = plt.tricontourf(X[:, 0], X[:, 1], Y.reshape(-1), 15)
-# ax.set_xlabel("$x$")
-# ax.set_ylabel("$y$")
-# ax.set_title("")
-# contf = plt.tricontourf(X[:, 0], X[:, 1], Y.reshape(-1), 100)
-# cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
-# cbar.set_label("$\Delta x$")
-# plt.savefig("../images/data/quadcopter-dataset-contour.pdf",
-#             transparent=True,
-#             bbox_inches='tight')
-# ax.scatter(X[:, 0], X[:, 1], marker='x', color='k', alpha=0.7, s=0.5)
-# print('here')
-# num = 380
-# line = ax.plot(X[0:num, 0], X[0:num, 1], color='k', alpha=0.5)[0]
-# add_arrow(line, color='k', alpha=0.5)
-# plt.savefig("../images/data/quadcopter-dataset-contour-with-scatter.pdf",
-#             transparent=True,
-#             bbox_inches='tight')

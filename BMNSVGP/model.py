@@ -208,23 +208,15 @@ class BMNSVGP(Model):
         """
         h = dist_h.sample(num_samples)  # [num_samples x num_data x 1]
         p_a_0 = 1 - inv_probit(h)
+        # p_a_0 = 1 - self.likelihood.predict_mean_and_var_a(
+        #     dist_h.loc, dist_h.scale)[0]
         p_a_0 = tf.reshape(p_a_0,
                            [num_samples, -1])  # [num_samples x num_data]
-        p_y = []
-        for f_mean, variance in zip(f_means, self.likelihood.variances):
-            # jitter = 1e-3
-            # variance += tf.eye(2, dtype=float_type) * jitter
-            dist_y = tfp.distributions.MultivariateNormalFullCovariance(
-                loc=f_mean, covariance_matrix=variance)
-            py = dist_y.prob(self.Y)  # [num_data, ]
-            p_y.append(py)
-        sum = tf.log(p_y[0] * p_a_0 + p_y[1] *
-                     (1 - p_a_0))  # [num_samples x num_data]
-        return 1. / (num_samples**2) * tf.reduce_sum(
-            sum, axis=[0, 1])  # [num_data, ]
+
+        return self._var_expectation(f_means, p_a_0, num_samples)
 
     @params_as_tensors
-    def _sample_e_f(self, dist_fs, h, num_samples=1000):
+    def _sample_e_f(self, dist_fs, h_mean, h_var, num_samples=1000):
         """
         Calculates variational expectation under dynamics GPs using Gibbs sampling.
         \E_{q(f_n)} [log (p(y_n | f_n, \alpha_n) p(\alpha_n | h_n) )], where,
@@ -233,22 +225,28 @@ class BMNSVGP(Model):
             h: array of h values (mean of conditional p(h_n | U_h, x_n)) [num_data x 1]
             num_samples: number of samples to draw from each distribution
         """
-        p_a_0 = 1 - inv_probit(h)
+        p_a_0 = 1 - inv_probit(h_mean)
+        # p_a_0 = 1 - self.likelihood.predict_mean_and_var_a(h_mean, h_var)[0]
         p_a_0 = tf.reshape(p_a_0, [-1])  # [num_data, ]
-        p_y = []
-        for i, (dist_f,
-                variance) in enumerate(zip(dist_fs,
-                                           self.likelihood.variances)):
+        f_vals = []
+        for dist_f in dist_fs:
             f = dist_f.sample(
                 num_samples)  # [num_samples x num_data x output_dim]
+            f_vals.append(f)
+        return self._var_expectation(f_vals, p_a_0, num_samples)
+
+    @params_as_tensors
+    def _var_expectation(self, f_vals, p_a_0, num_samples=1):
+        p_y = []
+        for f_val, variance in zip(f_vals, self.likelihood.variances):
+            # jitter = 1e-3
+            # variance += tf.eye(2, dtype=float_type) * jitter
             dist_y = tfp.distributions.MultivariateNormalFullCovariance(
-                loc=f, covariance_matrix=variance)
-            py = dist_y.prob(self.Y)  # [num_samples x num_data]
-            p_y.append(
-                tf.expand_dims(py, i)
-            )  # [1 x num_samples x num_data] or [num_samples x 1 x num_data]
+                loc=f_val, covariance_matrix=variance)
+            py = dist_y.prob(self.Y)  # [num_data, ]
+            p_y.append(py)
         sum = tf.log(p_y[0] * p_a_0 + p_y[1] *
-                     (1 - p_a_0))  # [num_samples x num_samples x num_data]
+                     (1 - p_a_0))  # [num_samples x num_data]
         return 1. / (num_samples**2) * tf.reduce_sum(
             sum, axis=[0, 1])  # [num_data, ]
 
@@ -304,8 +302,14 @@ class BMNSVGP(Model):
             dist_fs.append(tfp.distributions.Normal(loc=f_mean, scale=f_var))
 
         # Lets calculate the variatonal expectations
-        var_exp_h = self._sample_e_h(dist_h, f_means, num_samples=10)
-        var_exp_f = self._sample_e_f(dist_fs, h_mean, num_samples=10)
+
+        # p_a_0 = 1 - inv_probit(h_mean / (tf.sqrt(1 + h_var)))
+        # p_a_0 = tf.reshape(p_a_0, [-1])  # [num_data, ]
+        # var_exp_f = self._sample_e_f_new(dist_fs, p_a_0, num_samples=10)
+        # var_exp = var_exp_f
+
+        var_exp_h = self._sample_e_h(dist_h, f_means, num_samples=1)
+        var_exp_f = self._sample_e_f(dist_fs, h_mean, h_var, num_samples=1)
         var_exp = var_exp_f + var_exp_h
 
         # re-scale for minibatch size

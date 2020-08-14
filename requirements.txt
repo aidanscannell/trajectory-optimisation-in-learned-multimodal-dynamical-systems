@@ -1,0 +1,4 @@
+gpflow=1.5.1
+tensorflow=1.15
+tensorflow-probability=0.7.0
+

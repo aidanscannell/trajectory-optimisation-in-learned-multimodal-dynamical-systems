@@ -147,7 +147,8 @@ def single_gp_derivative_predict_pred(x_star, X, Y, kernel):
     print('ATA')
     print(ATA.shape)
     cov_j = d2k - ATA
-    cov_j = d2k
+    cov_j = 7 + d2k - ATA
+    # cov_j = d2k
     # cov_j = -ATA
     return mu_j, cov_j
 
@@ -177,8 +178,8 @@ def calc_G_map(c, X, Y, kernel):
     input_dim = X.shape[1]
     output_dim = Y.shape[1]
     print('calc_G_map')
-    mu_j, cov_j = single_gp_derivative_predict(c, X, Y, kernel)
-    # mu_j, cov_j = single_gp_derivative_predict_pred(c, X, Y, kernel)
+    # mu_j, cov_j = single_gp_derivative_predict(c, X, Y, kernel)
+    mu_j, cov_j = single_gp_derivative_predict_pred(c, X, Y, kernel)
 
     # print("number NaNs in mu_j")
     # print(np.count_nonzero(np.isnan(mu_j)))

@@ -3,18 +3,6 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 
-def load_data_and_init_kernel_fake(filename):
-    # Load kernel hyper-params and create kernel
-    params = np.load(filename)
-    l = params['l']  # [2]
-    var = params['var']  # [1]
-    X = params['x']  # [num_data x 2]
-    a_mu = params['a_mu']  # [num_data x 1] mean of alpha
-    a_var = params['a_var']  # [num_data x 1] variance of alpha
-    kernel = DiffRBF(X.shape[1], variance=var, lengthscale=l, ARD=True)
-    return X, a_mu, a_var, kernel
-
-
 def plot_mean_and_var(X, Y_mean, Y_var, llabel='mean', rlabel='variance'):
     fig, axs = plt.subplots(1, 2, figsize=(24, 4))
     plt.subplots_adjust(wspace=0, hspace=0)

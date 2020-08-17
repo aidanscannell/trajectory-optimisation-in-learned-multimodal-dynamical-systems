@@ -140,6 +140,7 @@ if __name__ == "__main__":
     max_step = None
     integrator = 'RK45'
     integrator = 'LSODA'
+    integrator = 'Radau'
     # ode_func = geodesic_fun
     # ode_func = geodesic_fun_sparse
 

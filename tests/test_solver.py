@@ -17,7 +17,8 @@ class FakeODE:
     gp = FakeGP()
     pos_init = np.array([2., -2.2])
     pos_end_targ = np.array([-1.5, 2.8])
-    vel_init_guess = np.array([-5.6, 5.9])
+    # vel_init_guess = np.array([-2.6, 2.9])
+    vel_init_guess = np.array([-2.5999999, 2.90100137])
     state_init = np.concatenate([pos_init, vel_init_guess])
     metric_fn = gp_metric_tensor
     # metric_fn_args = (gp.cov_fn, gp.X, gp.Y, gp.cov_weight)

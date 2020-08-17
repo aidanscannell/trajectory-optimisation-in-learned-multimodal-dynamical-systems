@@ -41,6 +41,7 @@ def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
     mu_j = A1.T @ A2
     cov_j = d2K - ATA
     # cov_j = 7 + d2K - ATA
+    cov_j = 7 - ATA
     return mu_j, cov_j
 
 
@@ -83,6 +84,7 @@ if __name__ == "__main__":
     from ProbGeo.visualisation.gp import plot_mean_and_var, plot_jacobian_mean, plot_jacobian_var
     from ProbGeo.visualisation.metric import plot_scatter_matrix, plot_metric_trace
     from ProbGeo.visualisation.utils import create_grid
+    from ProbGeo.gp import gp_predict
 
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
@@ -95,7 +97,6 @@ if __name__ == "__main__":
 
     # plot original GP
     test_inputs, xx, yy = create_grid(X, N=961)
-    from ProbGeo.utils.gp import gp_predict
     mu, cov = gp_predict(test_inputs, X, a_mu, kernel)
     var = np.diag(cov).reshape(-1, 1)
     axs = plot_mean_and_var(xx, yy, mu, var)

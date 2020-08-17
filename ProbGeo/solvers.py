@@ -1,4 +1,5 @@
 from jax import numpy as np
+from jax import jit, partial
 from scipy.integrate import solve_ivp
 from scipy.optimize import root
 
@@ -22,6 +23,7 @@ def integrate_ode_fn(ode_fn,
     return integrator.t, integrator.y
 
 
+# @partial(jit, static_argnums=(1, 2, 3, 4, 5, 6, 7, 8))
 def residuals_geodesic_vel(vel_init,
                            pos_init,
                            pos_end_targ,

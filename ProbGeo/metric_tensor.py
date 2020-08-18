@@ -36,6 +36,37 @@ def grad_cov_fn_wrt_x1x2(cov_fn, x1, x2):
     return d2k
 
 
+def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
+    Xnew = Xnew.reshape(1, -1)
+    input_dim = X.shape[1]
+    output_dim = Y.shape[1]
+
+    Kxx = cov_fn(X, X)
+    Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
+    chol = sp.linalg.cholesky(Kxx, lower=True)
+    # TODO check cholesky is implemented correctly
+    kinvy = sp.linalg.solve_triangular(chol, Y, lower=True)
+
+    # dk_dt0 = kernel.dK_dX(Xnew, X, 0)
+    # dk_dt1 = kernel.dK_dX(Xnew, X, 1)
+    # dk_dtT = np.stack([dk_dt0, dk_dt1], axis=1)
+    # dk_dtT = np.squeeze(dk_dtT)
+    dk_dtT = grad_cov_fn_wrt_x1(cov_fn, Xnew, X)
+
+    v = sp.linalg.solve_triangular(chol, dk_dtT, lower=True)
+
+    lengthscale = np.array([0.4, 0.4])
+    l2 = lengthscale**2
+    # l2 = kernel.lengthscale**2
+    l2 = np.diag(l2)
+    d2k_dtt = -l2 * cov_fn(Xnew, Xnew)
+
+    # calculate mean and variance of J
+    # mu_j = np.dot(dk_dtT, kinvy)
+    mu_j = v.T @ kinvy
+    cov_j = d2k_dtt - np.matmul(v.T, v)  # d2Kd2t doesn't need to be calculated
+
+
 def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
     assert Xnew.shape[1] == X.shape[1]
     Kxx = cov_fn(X, X)
@@ -51,7 +82,7 @@ def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
     mu_j = A1.T @ A2
     cov_j = d2K - ATA
     # cov_j = 7 + d2K - ATA
-    cov_j = 7 - ATA
+    # cov_j = 7 - ATA
     return mu_j, cov_j
 
 
@@ -83,6 +114,7 @@ def gp_metric_tensor(test_inputs, cov_fn, X, Y, cov_weight, jitter=1.e-4):
 
 @partial(jit, static_argnums=(1, 2))
 def calc_vec_metric_tensor(pos, metric_fn, metric_fn_args):
+    pos = pos.reshape(1, -1)
     metric_tensor, _, _ = metric_fn(pos, *metric_fn_args)
     input_dim = pos.shape[1]
     vec_metric_tensor = metric_tensor.reshape(input_dim * input_dim, )

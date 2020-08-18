@@ -17,15 +17,19 @@ def geodesic_ode(t, state, metric_fn, metric_fn_args):
 
     # TODO implement value and jac
     grad_func = jacfwd(calc_vec_metric_tensor, 0)
-    grad_vec_metric_tensor_wrt_pos = grad_func(pos, metric_fn, metric_fn_args)
-    grad_vec_metric_tensor_wrt_pos = grad_vec_metric_tensor_wrt_pos.reshape(
-        input_dim, input_dim * input_dim)
+    grad_vec_metric_tensor_wrt_pos = grad_func(pos.reshape(-1), metric_fn,
+                                               metric_fn_args)
+    # grad_vec_metric_tensor_wrt_pos = grad_vec_metric_tensor_wrt_pos.reshape(
+    #     input_dim, input_dim * input_dim)
+    print('grad vec')
+    print(grad_vec_metric_tensor_wrt_pos.shape)
+    grad_vec_metric_tensor_wrt_posT = grad_vec_metric_tensor_wrt_pos.T
 
     metric_tensor, _, _ = metric_fn(pos, *metric_fn_args)
     # TODO implement cholesky if metric_tensor is PSD
     inv_metric_tensor = np.linalg.inv(metric_tensor)
 
-    acc = -0.5 * inv_metric_tensor @ grad_vec_metric_tensor_wrt_pos @ kron_vel
+    acc = -0.5 * inv_metric_tensor @ grad_vec_metric_tensor_wrt_posT @ kron_vel
     acc = acc.reshape(1, input_dim)
 
     state_prime = np.concatenate([vel, acc], -1)

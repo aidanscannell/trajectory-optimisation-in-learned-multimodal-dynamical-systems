@@ -19,8 +19,18 @@ def grad_cov_fn_wrt_x1(cov_fn, x1, x2):
     return dk
 
 
+# def grad_cov_fn_wrt_x1x2(cov_fn, x1, x2):
+#     d2k = jacrev(jacfwd(cov_fn, (1)), (0))(x1, x2)
+#     # TODO replace squeeze with correct dimensions
+#     d2k = np.squeeze(d2k)
+#     return d2k
+
+
 def grad_cov_fn_wrt_x1x2(cov_fn, x1, x2):
-    d2k = jacrev(jacfwd(cov_fn, (1)), (0))(x1, x2)
+    def cov_fn_(x1):
+        return cov_fn(x1, x1)
+
+    d2k = jacrev(jacfwd(cov_fn_))(x1)
     # TODO replace squeeze with correct dimensions
     d2k = np.squeeze(d2k)
     return d2k

@@ -47,6 +47,10 @@ class DiffRBF:
         r = self._scaled_dist(X, X2)
         return self.K_of_r(r)
 
+    def Kdiag(self, X):
+        ret = np.ones(X.shape[0]) * self.variance
+        return ret
+
     # def dK_dX(self, X2):
     #     r = self._scaled_dist(X, X2)
     #     K = self.K_of_r(r)

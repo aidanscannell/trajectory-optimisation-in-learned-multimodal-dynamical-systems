@@ -86,8 +86,6 @@ def single_gp_derivative_predict_pred(x_star, X, Y, kernel):
 
     def Kvar_hess(x, kernel):
         fvar = kernel.K(x, x)
-        print('asfasdaffsd')
-        print(fvar.shape)
         # fvar = np.squeeze(fvar)
         # print(fvar.shape)
         return fvar
@@ -95,7 +93,8 @@ def single_gp_derivative_predict_pred(x_star, X, Y, kernel):
     print('before')
     # d2k = jacfwd(jacrev(Kvar))
     # d2k = j2k(x_star, x_star, kernel)
-    d2k = jacrev(jacfwd(Kvar, (1)), (0))(x_star, x_star, kernel)
+    # d2k = jacrev(jacfwd(Kvar, (1)), (0))(x_star, x_star, kernel)
+    d2k = jacrev(jacfwd(Kvar_hess, (0)), (0))(x_star, kernel)
     # d2k = hessian(Kvar_hess, 0)(x_star, kernel)
     # d2k = hessian(kernel.K)(x_star, x_star)
     print(d2k)
@@ -157,7 +156,7 @@ def single_gp_derivative_predict_pred(x_star, X, Y, kernel):
     print('ATA')
     print(ATA.shape)
     cov_j = d2k - ATA
-    cov_j = d2k
+    # cov_j = d2k
     # cov_j = -ATA
     return mu_j, cov_j
 
@@ -205,6 +204,7 @@ def calc_G_map(c, X, Y, kernel):
     assert jTj.shape == (input_dim, input_dim)
     var_weight = 0.1
     var_weight = 0.35
+    # var_weight = 0.15
     G = jTj + var_weight * output_dim * cov_j  # [input_dim x input_dim]
     assert G.shape == (input_dim, input_dim)
     return G, mu_j, cov_j
@@ -245,7 +245,7 @@ def gp_predict(x_star, X, Y, kernel, mean_func=0., jitter=1e-4):
 if __name__ == "__main__":
 
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
-        filename='./saved_models/params_fake.npz')
+        filename='../models/saved_models/params_fake.npz')
     Y = a_mu
 
     save_name = init_save_path(dir_name="visualise_metric")

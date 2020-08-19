@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from jax import jacrev, jacfwd, vmap, partial, jit
 
 
-def grad_cov_fn_wrt_x1(cov_fn, x1, x2):
+def jacobian_cov_fn_wrt_x1(cov_fn, x1, x2):
     """Calculate derivative of cov_fn wrt to x1
 
     :param cov_fn: covariance function with signature cov_fn(x1, x2)
@@ -26,7 +26,7 @@ def grad_cov_fn_wrt_x1(cov_fn, x1, x2):
 #     return d2k
 
 
-def grad_cov_fn_wrt_x1x2(cov_fn, x1, x2):
+def hessian_cov_fn_wrt_x1x1(cov_fn, x1):
     def cov_fn_(x1):
         return cov_fn(x1, x1)
 
@@ -51,7 +51,7 @@ def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
     # dk_dt1 = kernel.dK_dX(Xnew, X, 1)
     # dk_dtT = np.stack([dk_dt0, dk_dt1], axis=1)
     # dk_dtT = np.squeeze(dk_dtT)
-    dk_dtT = grad_cov_fn_wrt_x1(cov_fn, Xnew, X)
+    dk_dtT = jacobian_cov_fn_wrt_x1(cov_fn, Xnew, X)
 
     v = sp.linalg.solve_triangular(chol, dk_dtT, lower=True)
 
@@ -65,15 +65,18 @@ def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
     # mu_j = np.dot(dk_dtT, kinvy)
     mu_j = v.T @ kinvy
     cov_j = d2k_dtt - np.matmul(v.T, v)  # d2Kd2t doesn't need to be calculated
+    return mu_j, cov_j
 
 
 def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
+    print(Xnew.shape)
+    print(X.shape)
     assert Xnew.shape[1] == X.shape[1]
     Kxx = cov_fn(X, X)
     Kxx += jitter * np.eye(Kxx.shape[0])
     chol = sp.linalg.cholesky(Kxx, lower=True)
-    dKdx1 = grad_cov_fn_wrt_x1(cov_fn, Xnew, X)
-    d2K = grad_cov_fn_wrt_x1x2(cov_fn, Xnew, Xnew)
+    dKdx1 = jacobian_cov_fn_wrt_x1(cov_fn, Xnew, X)
+    d2K = hessian_cov_fn_wrt_x1x1(cov_fn, Xnew)
 
     A1 = sp.linalg.solve_triangular(chol, dKdx1, lower=True)
     A2 = sp.linalg.solve_triangular(chol, Y, lower=True)

@@ -30,10 +30,20 @@ def single_gp_derivative_predict(xy, X, Y, kernel):
     #     chol.T, sp.linalg.solve_triangular(chol, Y, lower=True))
     kinvy = sp.linalg.solve_triangular(chol, Y, lower=True)
 
-    dk_dt0 = kernel.dK_dX(xy, X, 0)
-    dk_dt1 = kernel.dK_dX(xy, X, 1)
-    dk_dtT = np.stack([dk_dt0, dk_dt1], axis=1)
-    dk_dtT = np.squeeze(dk_dtT)
+    # dk_dt0 = kernel.dK_dX(xy, X, 0)
+    # dk_dt1 = kernel.dK_dX(xy, X, 1)
+    # dk_dtT = np.stack([dk_dt0, dk_dt1], axis=1)
+    # dk_dtT = np.squeeze(dk_dtT)
+
+    def Kvar(x1, x2, kernel):
+        fvar = kernel.K(x1, x2)
+        return fvar
+
+    dk_dt = jacfwd(Kvar, 0)(xy, X, kernel)
+    # print('dk_dt')
+    # print(dk_dt.shape)
+    dk_dt = dk_dt.reshape(-1, input_dim)
+    dk_dtT = dk_dt.T
 
     v = sp.linalg.solve_triangular(chol, dk_dtT.T, lower=True)
 

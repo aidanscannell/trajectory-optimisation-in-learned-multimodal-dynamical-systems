@@ -19,20 +19,20 @@ def integrate_ode_fn(ode_fn,
     return integrator.t, integrator.y
 
 
-def residuals_geodesic_vel(vel_init,
-                           pos_init,
-                           pos_end_targ,
-                           metric_fn,
-                           metric_fn_args,
-                           times,
-                           t_init=0.,
-                           t_end=1.,
-                           int_method='RK45'):
+def error_geodesic_vel(vel_init,
+                       pos_init,
+                       pos_end_targ,
+                       metric_fn,
+                       metric_fn_args,
+                       times,
+                       t_init=0.,
+                       t_end=1.,
+                       int_method='RK45'):
     def ode_fn(t, state):
         return geodesic_ode(t, state, metric_fn, metric_fn_args)
 
     input_dim = pos_init.shape[0]
-    print('Trying vel[t=0]: ', vel_init)
+    print('Shooting with initial velocity: ', vel_init)
     state_init = np.concatenate([pos_init, vel_init])
 
     ts, states = integrate_ode_fn(ode_fn,
@@ -44,7 +44,7 @@ def residuals_geodesic_vel(vel_init,
     pos_end_integrated = np.array(states)[0:input_dim, -1]
 
     error = pos_end_targ - pos_end_integrated
-    print('Residual [pos_target(t_end)-pos_integrated(t_end)]: ', error)
+    print('Target pos error: ', error)
     return error
 
 
@@ -62,13 +62,13 @@ def shooting_geodesic_solver(pos_init,
     def ode_fn(t, state):
         return geodesic_ode(t, state, metric_fn, metric_fn_args)
 
-    residuals_geodesic_vel_args = (pos_init, pos_end_targ, metric_fn,
-                                   metric_fn_args, times, t_init, t_end,
-                                   int_method)
+    error_geodesic_vel_args = (pos_init, pos_end_targ, metric_fn,
+                               metric_fn_args, times, t_init, t_end,
+                               int_method)
     opt_result = root(
-        residuals_geodesic_vel,
+        error_geodesic_vel,
         vel_init_guess,
-        args=residuals_geodesic_vel_args,
+        args=error_geodesic_vel_args,
         # jac=loss_jac,
         options={'maxfev': maxfev},
         tol=root_tol)

@@ -1,10 +1,27 @@
+from jax.config import config
+config.update("jax_enable_x64", True)
+
 from jax import numpy as np
 from ProbGeo.solvers import shooting_geodesic_solver
+from jax import random
+
+
+class FakeSVGP:
+    from ProbGeo.utils.gp import load_data_and_init_kernel_fake
+    cov_weight = 38.
+    cov_weight = 1.
+    cov_weight = 0.15
+    # cov_weight = 0.15
+    X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
+        filename='../models/saved_models/params_fake.npz')
+    Y = a_mu
+    cov_fn = kernel.K
 
 
 class FakeGP:
     from ProbGeo.utils.gp import load_data_and_init_kernel_fake
-    cov_weight = 38.
+    # cov_weight = 38.
+    # cov_weight = 1.
     cov_weight = 0.15
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
@@ -17,25 +34,36 @@ class FakeODE:
     gp = FakeGP()
     pos_init = np.array([2., -2.2])
     pos_end_targ = np.array([-1.5, 2.8])
-    # vel_init_guess = np.array([-2.6, 2.9])
-    vel_init_guess = np.array([-2.5999999, 2.90100137])
+    # pos_end_targ = np.array([-0.5, 2.8])
+    # vel_init_guess = np.array([-2.5999999, 2.90100137])
+    # vel_init_guess = np.array([-5.5999999, 5.90100137])
+    # vel_init_guess = np.array([-15.5999999, 2.90100137])
+    vel_init_guess = np.array([-5.641, 3.95])
+    # vel_init_guess = np.array([-5.7, 3.])
+    # vel_init_guess = np.array([-0.7, 3.])
     state_init = np.concatenate([pos_init, vel_init_guess])
     metric_fn = gp_metric_tensor
     # metric_fn_args = (gp.cov_fn, gp.X, gp.Y, gp.cov_weight)
     metric_fn_args = [gp.cov_fn, gp.X, gp.Y, gp.cov_weight]
     # metric_fn_args = [gp.cov_fn, gp.X, gp.Y]
-    times = np.linspace(0., 1., 100)
+    num_timesteps = 100
+    times = np.linspace(0., 1., num_timesteps)
     t_init = 0.
     t_end = 1.
+    int_method = 'Radau'
+    # int_method = 'RK45'
 
 
 def test_shooting_geodesic_solver():
     from ProbGeo.metric_tensor import gp_metric_tensor
     ode = FakeODE()
     metric_fn = gp_metric_tensor
+    root_tol = 0.000005
+    maxfev = 2000
     opt_vel_init, geodesic_traj = shooting_geodesic_solver(
         ode.pos_init, ode.pos_end_targ, ode.vel_init_guess, metric_fn,
-        ode.metric_fn_args, ode.times)
+        ode.metric_fn_args, ode.times, ode.t_init, ode.t_end, ode.int_method,
+        root_tol, maxfev)
     return opt_vel_init, geodesic_traj
 
 
@@ -63,20 +91,15 @@ if __name__ == "__main__":
         ax.annotate("end", (FakeODE.pos_end_targ[0], FakeODE.pos_end_targ[1]))
     # plt.show()
 
-    # # test_geodesic_ode()
     opt_vel_init, geodesic_traj = test_shooting_geodesic_solver()
 
-    # x = np.array(y_at_0).reshape(1, 2)
-    # z = np.array(zs).T
-    # z = np.append(x, z[:, 0:2], axis=0)
     for ax in axs:
         ax.scatter(geodesic_traj[0, :],
                    geodesic_traj[1, :],
                    marker='x',
                    color='k')
-        # ax.plot(z[:, 0], z[:, 1], marker='x', color='k')
-        # ax.scatter(y_at_0[0], y_at_0[1], marker='o', color='r')
-        # ax.scatter(y_at_length[0], y_at_length[1], color='r', marker='o')
-        # ax.annotate("start", (y_at_0[0], y_at_0[1]))
-        # ax.annotate("end", (y_at_length[0], y_at_length[1]))
+        ax.plot(geodesic_traj[0, :],
+                geodesic_traj[1, :],
+                marker='x',
+                color='k')
     plt.show()

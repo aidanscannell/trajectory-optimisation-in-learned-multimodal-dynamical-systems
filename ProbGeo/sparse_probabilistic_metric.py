@@ -62,6 +62,39 @@ def single_sparse_gp_derivative_predict(x_star, X, z, q_mu, q_sqrt, kernel,
         # cov = k_ff + LTA1.T @ LTA2
         return cov
 
+    def Kvar_(x1, z, q_mu, q_sqrt, kernel, mean_func):
+        k_uu = Kuu(z, kernel)  # 200 200
+        k_1u = Kuf(x1, kernel, z)  # 961 200
+        k_u2 = Kuf(z, kernel, x1)  # 200 961
+        k_ff = kernel.K(x1, x1)  # 961 961
+        print('inside')
+        print(k_uu.shape)
+        print(k_1u.shape)
+        print(k_u2.shape)
+        print(k_ff.shape)
+        # print(np.count_nonzero(np.isnan(k_uu)))
+        # print(np.count_nonzero(np.isnan(k_1u)))
+        # print(np.count_nonzero(np.isnan(k_u2)))
+        # print(np.count_nonzero(np.isnan(k_ff)))
+
+        Lu = sp.linalg.cholesky(k_uu, lower=True)
+        A1 = sp.linalg.solve_triangular(Lu, k_1u.T, lower=True)
+        A2 = sp.linalg.solve_triangular(Lu, k_u2, lower=True)
+        ATA = A1.T @ A2
+
+        Ls = np.squeeze(q_sqrt)
+
+        # LLSLLST = A1.T @ LLS @ LLS.T @ A2
+        LTA1 = Ls @ A1
+        LTA2 = Ls @ A2
+        print('LTA')
+        print(LTA1.shape)
+        print(LTA2.shape)
+
+        cov = k_ff - ATA + LTA1.T @ LTA2
+        # cov = k_ff + LTA1.T @ LTA2
+        return cov
+
     def Kmean(x1, x2, z, q_mu, q_sqrt, kernel, mean_func):
         k_uu = Kuu(z, kernel)
         k_1u = Kuf(x1, kernel, z)
@@ -85,8 +118,10 @@ def single_sparse_gp_derivative_predict(x_star, X, z, q_mu, q_sqrt, kernel,
     # d2k = np.array([d2k0, d2k1])
     print("d2k")
     # print(d2k.shape)
-    d2k = jacrev(jacfwd(Kvar, (1)), (0))(x_star, x_star, z, q_mu, q_sqrt,
-                                         kernel, mean_func)
+    # d2k = jacrev(jacfwd(Kvar, (1)), (0))(x_star, x_star, z, q_mu, q_sqrt,
+    #                                      kernel, mean_func)
+    d2k = jacrev(jacfwd(Kvar_, (0)), (0))(x_star, z, q_mu, q_sqrt, kernel,
+                                          mean_func)
     # d2k = hessian(Kvar_hess, 0)(x_star, kernel)
     # d2k = hessian(kernel.K)(x_star, x_star)
     print(d2k)
@@ -290,11 +325,13 @@ def load_data_and_init_kernel(filename):
 if __name__ == "__main__":
     X, Y, h_mu, h_var, z, q_mu, q_sqrt, kernel, mean_func, xx, yy, xy, m_h_mu, m_h_var = load_data_and_init_kernel(
         # filename='saved_models/27-2/137/params_from_model.npz')
-        filename='./saved_models/model-fake-data/1210/params_from_model.npz')
+        filename='../models/saved_models/params_from_model.npz')
+    # '../models/saved_models/model-fake-data/1210/params_from_model.npz')
     # filename='saved_models/26-2/1247/params_from_model.npz')
     # filename='saved_models/20-2/189/params_from_model.npz')
 
-    save_path = init_save_path()
+    # save_path = init_save_path()
+    save_path = ''
 
     mu_j_sparse, cov_j_sparse = sparse_gp_derivative_predict(
         xy, X, z, q_mu, q_sqrt, kernel, mean_func, m_h_mu)
@@ -304,7 +341,7 @@ if __name__ == "__main__":
     plt.suptitle('Original GP - predicted using BMNSVGP')
     axs = plot_mean_and_var(X, m_h_mu, m_h_var)
     plt.suptitle('Original GP - predicted using BMNSVGP')
-    plt.savefig(save_path + 'original_gp_from_model.pdf', transparent=True)
+    # plt.savefig(save_path + 'original_gp_from_model.pdf', transparent=True)
 
     # mu, var = gp_predict(xy, X, m_h_mu, kernel, mean_func=mean_func)
     # var = np.diag(var).reshape(-1, 1)
@@ -335,7 +372,7 @@ if __name__ == "__main__":
     var_sparse = np.diag(var_sparse).reshape(-1, 1)
     axs = plot_mean_and_var(xy, mu_sparse, var_sparse)
     plt.suptitle("Sparse GP prediction func with LTA.T LTA")
-    plt.savefig(save_path + 'original_gp_predicted.pdf', transparent=True)
+    # plt.savefig(save_path + 'original_gp_predicted.pdf', transparent=True)
     # plt.show()
 
     print('Calculating trace of metric, cov_j and mu_j...')

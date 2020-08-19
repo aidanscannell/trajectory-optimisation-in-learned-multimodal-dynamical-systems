@@ -10,8 +10,8 @@ from scipy.optimize import root
 from derivative_kernel_gpy import DiffRBF
 
 from probabilistic_geodesic import geodesic_fun
-from utils.visualise_metric import (create_grid, gp_predict, plot_gradient,
-                                    plot_mean_and_var, plot_metric_trace)
+# from utils.visualise_metric import (create_grid, gp_predict, plot_gradient,
+#                                     plot_mean_and_var, plot_metric_trace)
 from sparse_probabilistic_metric import (calc_G_map_sparse,
                                          gp_predict_sparse_LTA)
 from sparse_probabilistic_geodesic import (geodesic_fun_sparse)

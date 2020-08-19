@@ -8,7 +8,7 @@ from utils.metric_utils import (create_grid, init_save_path, plot_gradient,
                                 plot_metric_trace)
 # from utils.visualise_metric import load_data_and_init_kernel_fake, create_grid, plot_mean_and_var
 from utils.sparse_gp_helpers import gp_predict_sparse
-from utils.gp_helpers import gp_predict
+from gp import gp_predict
 # from probabilistic_geodesic import geodesic_fun
 from derivative_kernel_gpy import DiffRBF
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     max_step = None
     integrator = 'RK45'
     integrator = 'LSODA'
-    integrator = 'Radau'
+    # integrator = 'Radau'
     # ode_func = geodesic_fun
     # ode_func = geodesic_fun_sparse
 
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     # Load probabilistic manifold (GP) data
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
-        filename='saved_models/params_fake.npz')
+        filename='../models/saved_models/params_fake.npz')
     Y = a_mu
     # X, Y, h_mu, h_var, z, q_mu, q_sqrt, kernel, mean_func, xx, yy, xy, m_h_mu, m_h_var = load_data_and_init_kernel(
     #     # filename='saved_models/27-2/137/params_from_model.npz')

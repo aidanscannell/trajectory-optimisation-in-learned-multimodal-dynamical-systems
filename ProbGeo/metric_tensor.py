@@ -89,14 +89,24 @@ def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
     return mu_j, cov_j
 
 
-def gp_metric_tensor(test_inputs, cov_fn, X, Y, cov_weight, jitter=1.e-4):
-    # def gp_metric_tensor(test_inputs, cov_fn, X, Y, cov_weight, jitter=1.e-4):
+def gp_metric_tensor(test_inputs,
+                     cov_fn,
+                     X,
+                     Y,
+                     cov_weight,
+                     jitter=1.e-4,
+                     full_cov=True):
     def calc_expected_metric_tensor_single(x):
         if len(x.shape) == 1:
             x = x.reshape(1, input_dim)
         mu_j, cov_j = gp_jacobian(cov_fn, x, X, Y, jitter=jitter)
         assert mu_j.shape == (input_dim, 1)
         assert cov_j.shape == (input_dim, input_dim)
+
+        if not full_cov:
+            # TODO this should be inside gp_jacobian to improve comp speed
+            var_j = np.diagonal(cov_j)
+            cov_j = np.diag(var_j)
 
         expected_jac_outer_prod = np.matmul(mu_j,
                                             mu_j.T)  # [input_dim x input_dim]

@@ -23,8 +23,8 @@ class FakeGP:
     from ProbGeo.utils.gp import load_data_and_init_kernel_fake
     # cov_weight = 38.
     # cov_weight = 1.
-    # cov_weight = 0.15
-    cov_weight = 0.35
+    cov_weight = 0.15
+    # cov_weight = 0.35
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
     Y = a_mu
@@ -34,7 +34,9 @@ class FakeGP:
 class FakeODE:
     from ProbGeo.metric_tensor import gp_metric_tensor
     gp = FakeGP()
-    pos_init = np.array([2., -2.2])
+    # pos_init = np.array([2., -2.2])
+    # pos_init = np.array([2.2, -2.8])
+    pos_init = np.array([2.8, -2.5])
     pos_end_targ = np.array([-1.5, 2.8])
     # pos_end_targ = np.array([-0.5, 2.8])
     # vel_init_guess = np.array([-2.5999999, 2.90100137])

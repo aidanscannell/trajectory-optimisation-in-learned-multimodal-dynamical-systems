@@ -34,3 +34,12 @@ def geodesic_ode(t, state, metric_fn, metric_fn_args):
 
     state_prime = np.concatenate([vel, acc], -1)
     return state_prime.reshape(-1)
+
+
+@partial(jit, static_argnums=(2, 3))
+def geodesic_ode_bvp(t, state, metric_fn, metric_fn_args):
+    state_prime = vmap(geodesic_ode,
+                       in_axes=(None, 1, None, None))(t, state, metric_fn,
+                                                      metric_fn_args)
+    state_primeT = state_prime.T
+    return state_primeT

@@ -11,6 +11,7 @@ class FakeSVGP:
     cov_weight = 38.
     cov_weight = 1.
     cov_weight = 0.15
+    cov_weight = 0.35
     # cov_weight = 0.15
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
@@ -22,7 +23,8 @@ class FakeGP:
     from ProbGeo.utils.gp import load_data_and_init_kernel_fake
     # cov_weight = 38.
     # cov_weight = 1.
-    cov_weight = 0.15
+    # cov_weight = 0.15
+    cov_weight = 0.35
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
     Y = a_mu
@@ -58,8 +60,8 @@ def test_shooting_geodesic_solver():
     from ProbGeo.metric_tensor import gp_metric_tensor
     ode = FakeODE()
     metric_fn = gp_metric_tensor
-    root_tol = 0.000005
-    maxfev = 2000
+    root_tol = 0.0005
+    maxfev = 1000
     opt_vel_init, geodesic_traj = shooting_geodesic_solver(
         ode.pos_init, ode.pos_end_targ, ode.vel_init_guess, metric_fn,
         ode.metric_fn_args, ode.times, ode.t_init, ode.t_end, ode.int_method,

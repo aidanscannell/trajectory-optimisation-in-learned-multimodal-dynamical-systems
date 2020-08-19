@@ -55,7 +55,7 @@ class GeodesicSolver:
             # max_step=max_step,
             method=self.integrator)
         # dense_output=True)
-        print(integrator)
+        # print(integrator)
         return integrator.t, integrator.y
 
     def residuals(self, yprime_at_0, y_at_0, y_at_length):
@@ -140,11 +140,12 @@ if __name__ == "__main__":
     max_step = None
     integrator = 'RK45'
     integrator = 'LSODA'
+    integrator = 'Radau'
     # ode_func = geodesic_fun
     # ode_func = geodesic_fun_sparse
 
     # Set parameters for root finder
-    root_tol = 0.05
+    root_tol = 0.005
     maxfev = None  # max function evaluations for root finder
     maxfev = 1000  # max function evaluations for root finder
 
@@ -157,7 +158,7 @@ if __name__ == "__main__":
 
     # Load probabilistic manifold (GP) data
     X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
-        filename='saved_models/params_fake.npz')
+        filename='../models/saved_models/params_fake.npz')
     Y = a_mu
     # X, Y, h_mu, h_var, z, q_mu, q_sqrt, kernel, mean_func, xx, yy, xy, m_h_mu, m_h_var = load_data_and_init_kernel(
     #     # filename='saved_models/27-2/137/params_from_model.npz')

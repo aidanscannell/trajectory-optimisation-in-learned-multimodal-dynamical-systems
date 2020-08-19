@@ -3,8 +3,7 @@ import jax.scipy as sp
 import matplotlib.pyplot as plt
 from derivative_kernel_gpy import DiffRBF
 from jax import jit, partial, vmap, jacfwd, hessian, jacrev
-from utils.metric_utils import (create_grid, init_save_path,
-                                load_data_and_init_kernel_fake, plot_gradient,
+from utils.metric_utils import (create_grid, init_save_path, plot_gradient,
                                 plot_mean_and_var, plot_metric_trace)
 from jax.config import config
 config.update("jax_debug_nans", True)

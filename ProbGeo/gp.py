@@ -1,5 +1,10 @@
 from jax import numpy as np
 from jax import scipy as sp
+from jax import partial, jit, jacfwd, jacrev, vmap
+# from typing import Bool
+
+from ProbGeo.covariances import Kuu, Kuf, jacobian_cov_fn_wrt_x1, hessian_cov_fn_wrt_x1x1
+from ProbGeo.conditionals import base_conditional
 
 
 def gp_predict(x_star, X, Y, kernel, mean_func=0., jitter=1e-4):
@@ -23,3 +28,57 @@ def gp_predict(x_star, X, Y, kernel, mean_func=0., jitter=1e-4):
     cov = Kss - np.matmul(vT, v)
     mu = mu + mean_func
     return mu, cov
+
+
+def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
+    Xnew = Xnew.reshape(1, -1)
+    input_dim = X.shape[1]
+    output_dim = Y.shape[1]
+
+    Kxx = cov_fn(X, X)
+    Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
+    chol = sp.linalg.cholesky(Kxx, lower=True)
+    # TODO check cholesky is implemented correctly
+    kinvy = sp.linalg.solve_triangular(chol, Y, lower=True)
+
+    # dk_dt0 = kernel.dK_dX(Xnew, X, 0)
+    # dk_dt1 = kernel.dK_dX(Xnew, X, 1)
+    # dk_dtT = np.stack([dk_dt0, dk_dt1], axis=1)
+    # dk_dtT = np.squeeze(dk_dtT)
+    dk_dtT = jacobian_cov_fn_wrt_x1(cov_fn, Xnew, X)
+
+    v = sp.linalg.solve_triangular(chol, dk_dtT, lower=True)
+
+    # TODO lengthscale shouldn't be hard codded
+    lengthscale = np.array([0.4, 0.4])
+    l2 = lengthscale**2
+    # l2 = kernel.lengthscale**2
+    l2 = np.diag(l2)
+    d2k_dtt = -l2 * cov_fn(Xnew, Xnew)
+
+    # calculate mean and variance of J
+    # mu_j = np.dot(dk_dtT, kinvy)
+    mu_j = v.T @ kinvy
+    cov_j = d2k_dtt - np.matmul(v.T, v)  # d2Kd2t doesn't need to be calculated
+    return mu_j, cov_j
+
+
+def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
+    print(Xnew.shape)
+    print(X.shape)
+    assert Xnew.shape[1] == X.shape[1]
+    Kxx = cov_fn(X, X)
+    Kxx += jitter * np.eye(Kxx.shape[0])
+    chol = sp.linalg.cholesky(Kxx, lower=True)
+    dKdx1 = jacobian_cov_fn_wrt_x1(cov_fn, Xnew, X)
+    d2K = hessian_cov_fn_wrt_x1x1(cov_fn, Xnew)
+
+    A1 = sp.linalg.solve_triangular(chol, dKdx1, lower=True)
+    A2 = sp.linalg.solve_triangular(chol, Y, lower=True)
+    ATA = A1.T @ A1
+
+    mu_j = A1.T @ A2
+    cov_j = d2K - ATA
+    # cov_j = 7 + d2K - ATA
+    # cov_j = 7 - ATA
+    return mu_j, cov_j

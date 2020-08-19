@@ -55,6 +55,7 @@ def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
 
     v = sp.linalg.solve_triangular(chol, dk_dtT, lower=True)
 
+    # TODO lengthscale shouldn't be hard codded
     lengthscale = np.array([0.4, 0.4])
     l2 = lengthscale**2
     # l2 = kernel.lengthscale**2
@@ -100,6 +101,7 @@ def gp_metric_tensor(test_inputs,
         if len(x.shape) == 1:
             x = x.reshape(1, input_dim)
         mu_j, cov_j = gp_jacobian(cov_fn, x, X, Y, jitter=jitter)
+        # mu_j, cov_j = gp_jacobian_hard_coded(cov_fn, x, X, Y, jitter=jitter)
         assert mu_j.shape == (input_dim, 1)
         assert cov_j.shape == (input_dim, input_dim)
 

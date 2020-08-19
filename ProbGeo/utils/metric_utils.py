@@ -1,6 +1,7 @@
 import jax.numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from derivative_kernel_gpy import DiffRBF
 
 
 def load_data_and_init_kernel_fake(filename):

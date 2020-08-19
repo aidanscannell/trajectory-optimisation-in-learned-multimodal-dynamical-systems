@@ -1,38 +1,9 @@
 import jax.numpy as np
-import jax.scipy as sp
 import matplotlib.pyplot as plt
 
-from jax import jacrev, jacfwd, vmap, partial, jit
+from jax import vmap, partial, jit
 
-from ProbGeo.gp import gp_jacobian
-
-# def jacobian_cov_fn_wrt_x1(cov_fn, x1, x2):
-#     """Calculate derivative of cov_fn wrt to x1
-
-#     :param cov_fn: covariance function with signature cov_fn(x1, x2)
-#     :param x1: [1, input_dim]
-#     :param x2: [num_x2, input_dim]
-#     :returns:
-#     """
-#     dk = jacfwd(cov_fn, (0))(x1, x2)
-#     # TODO replace squeeze with correct dimensions
-#     dk = np.squeeze(dk)
-#     return dk
-
-# # def grad_cov_fn_wrt_x1x2(cov_fn, x1, x2):
-# #     d2k = jacrev(jacfwd(cov_fn, (1)), (0))(x1, x2)
-# #     # TODO replace squeeze with correct dimensions
-# #     d2k = np.squeeze(d2k)
-# #     return d2k
-
-# def hessian_cov_fn_wrt_x1x1(cov_fn, x1):
-#     def cov_fn_(x1):
-#         return cov_fn(x1, x1)
-
-#     d2k = jacrev(jacfwd(cov_fn_))(x1)
-#     # TODO replace squeeze with correct dimensions
-#     d2k = np.squeeze(d2k)
-#     return d2k
+from ProbGeo.gp import gp_jacobian, gp_jacobian_hard_coded
 
 
 def gp_metric_tensor(test_inputs,

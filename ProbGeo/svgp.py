@@ -7,15 +7,15 @@ from ProbGeo.covariances import Kuu, Kuf, jacobian_cov_fn_wrt_x1, hessian_cov_fn
 from ProbGeo.conditionals import base_conditional
 
 
-def sparse_gp_predict(Xnew,
-                      Z,
-                      kernel,
-                      mean_func,
-                      q_mu,
-                      full_cov=False,
-                      q_sqrt=None,
-                      jitter=1e-8,
-                      white: bool = True):
+def svgp_predict(Xnew,
+                 Z,
+                 kernel,
+                 mean_func,
+                 q_mu,
+                 full_cov=False,
+                 q_sqrt=None,
+                 jitter=1e-8,
+                 white: bool = True):
     Kmm = Kuu(Z, kernel)
     Kmn = kernel.K(Z, Xnew)
     if full_cov:
@@ -35,15 +35,15 @@ def sparse_gp_predict(Xnew,
     return fmean + mean_func, fvar
 
 
-def sparse_gp_jacobian(Xnew,
-                       Z,
-                       kernel,
-                       mean_func,
-                       q_mu,
-                       full_cov=False,
-                       q_sqrt=None,
-                       jitter=1e-8,
-                       white: bool = True):
+def svgp_jacobian(Xnew,
+                  Z,
+                  kernel,
+                  mean_func,
+                  q_mu,
+                  full_cov=False,
+                  q_sqrt=None,
+                  jitter=1e-8,
+                  white: bool = True):
 
     # TODO what to do with mean_func???
     # TODO handle output dimension > 1

@@ -1,33 +1,39 @@
 from jax import numpy as np
 from jax import scipy as sp
 from jax import partial, jit, jacfwd, jacrev, vmap
-# from typing import Bool
+from typing import Tuple
 
 from ProbGeo.covariances import Kuu, Kuf, jacobian_cov_fn_wrt_x1, hessian_cov_fn_wrt_x1x1
 from ProbGeo.conditionals import base_conditional
+from ProbGeo.typing import InputData, OutputData, MeanFunc, MeanAndVariance
 
 
-def gp_predict(x_star, X, Y, kernel, mean_func=0., jitter=1e-4):
-    num_data = X.shape[0]
+def gp_predict(
+        Xnew: InputData,
+        X: InputData,
+        kernel,
+        mean_func: MeanFunc,
+        Y: OutputData,
+        full_cov: bool = False,
+        # jitter=1e-8,
+        white: bool = True) -> MeanAndVariance:
+    # TODO add noise???
+    Kmm = Kuu(X, kernel)
+    Kmn = kernel.K(X, Xnew)
+    if full_cov:
+        Knn = kernel.K(Xnew, Xnew)
+    else:
+        Knn = kernel.Kdiag(Xnew)
 
-    Kxx = kernel.K(X, X)
-    Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
-    chol = sp.linalg.cholesky(Kxx, lower=True)
-    assert chol.shape == (num_data, num_data)
-    kinvy = sp.linalg.solve_triangular(
-        chol.T, sp.linalg.solve_triangular(chol, Y, lower=True))
-    assert kinvy.shape == (num_data, 1)
-
-    # calculate mean and variance of J
-    Kxs = kernel.K(X, x_star)
-    mu = np.dot(Kxs.T, kinvy)
-
-    Kss = kernel.K(x_star, x_star)
-    v = sp.linalg.solve_triangular(chol, Kxs, lower=True)
-    vT = v.T
-    cov = Kss - np.matmul(vT, v)
-    mu = mu + mean_func
-    return mu, cov
+    # TODO map over output dimension of Y??
+    fmean, fvar = base_conditional(Kmn,
+                                   Kmm,
+                                   Knn,
+                                   f=Y,
+                                   full_cov=full_cov,
+                                   q_sqrt=None,
+                                   white=white)
+    return fmean + mean_func, fvar
 
 
 def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
@@ -63,22 +69,69 @@ def gp_jacobian_hard_coded(cov_fn, Xnew, X, Y, jitter=1e-4):
     return mu_j, cov_j
 
 
-def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
-    print(Xnew.shape)
-    print(X.shape)
+def gp_jacobian(Xnew: InputData,
+                X: InputData,
+                kernel,
+                mean_func: MeanFunc,
+                Y: OutputData,
+                full_cov: bool = False,
+                jitter=1e-6,
+                white: bool = True) -> MeanAndVariance:
     assert Xnew.shape[1] == X.shape[1]
-    Kxx = cov_fn(X, X)
+    Kxx = kernel.K(X, X)
+    # Kxx = cov_fn(X, X)
     Kxx += jitter * np.eye(Kxx.shape[0])
-    chol = sp.linalg.cholesky(Kxx, lower=True)
-    dKdx1 = jacobian_cov_fn_wrt_x1(cov_fn, Xnew, X)
-    d2K = hessian_cov_fn_wrt_x1x1(cov_fn, Xnew)
+    # chol = sp.linalg.cholesky(Knn, lower=True)
+    dKdx1 = jacobian_cov_fn_wrt_x1(kernel.K, Xnew, X)
+    d2K = hessian_cov_fn_wrt_x1x1(kernel.K, Xnew)
+    mu_j, cov_j = base_conditional(dKdx1,
+                                   Kmm=Kxx,
+                                   Knn=d2K,
+                                   f=Y,
+                                   full_cov=full_cov,
+                                   q_sqrt=None,
+                                   white=white)
+    return mu_j + mean_func, cov_j
 
-    A1 = sp.linalg.solve_triangular(chol, dKdx1, lower=True)
-    A2 = sp.linalg.solve_triangular(chol, Y, lower=True)
-    ATA = A1.T @ A1
 
-    mu_j = A1.T @ A2
-    cov_j = d2K - ATA
-    # cov_j = 7 + d2K - ATA
-    # cov_j = 7 - ATA
-    return mu_j, cov_j
+# def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):
+#     print(Xnew.shape)
+#     print(X.shape)
+#     assert Xnew.shape[1] == X.shape[1]
+#     Kxx = cov_fn(X, X)
+#     Kxx += jitter * np.eye(Kxx.shape[0])
+#     chol = sp.linalg.cholesky(Kxx, lower=True)
+#     dKdx1 = jacobian_cov_fn_wrt_x1(cov_fn, Xnew, X)
+#     d2K = hessian_cov_fn_wrt_x1x1(cov_fn, Xnew)
+
+#     A1 = sp.linalg.solve_triangular(chol, dKdx1, lower=True)
+#     A2 = sp.linalg.solve_triangular(chol, Y, lower=True)
+#     ATA = A1.T @ A1
+
+#     mu_j = A1.T @ A2
+#     cov_j = d2K - ATA
+#     # cov_j = 7 + d2K - ATA
+#     # cov_j = 7 - ATA
+#     return mu_j, cov_j
+
+# def gp_predict(Xnew, X, Y, kernel, mean_func=0., jitter=1e-4):
+# num_data = X.shape[0]
+
+# Kxx = kernel.K(X, X)
+# Kxx = Kxx + jitter * np.eye(Kxx.shape[0])
+# chol = sp.linalg.cholesky(Kxx, lower=True)
+# assert chol.shape == (num_data, num_data)
+# kinvy = sp.linalg.solve_triangular(
+#     chol.T, sp.linalg.solve_triangular(chol, Y, lower=True))
+# assert kinvy.shape == (num_data, 1)
+
+# # calculate mean and variance of J
+# Kxs = kernel.K(X, x_star)
+# mu = np.dot(Kxs.T, kinvy)
+
+# Kss = kernel.K(x_star, x_star)
+# v = sp.linalg.solve_triangular(chol, Kxs, lower=True)
+# vT = v.T
+# cov = Kss - np.matmul(vT, v)
+# mu = mu + mean_func
+# return mu, cov

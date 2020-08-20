@@ -13,9 +13,8 @@ class FakeSVGP:
     cov_weight = 0.15
     cov_weight = 0.35
     # cov_weight = 0.15
-    X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
+    X, Y, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
-    Y = a_mu
     cov_fn = kernel.K
 
 
@@ -25,9 +24,8 @@ class FakeGP:
     # cov_weight = 1.
     cov_weight = 0.15
     # cov_weight = 0.35
-    X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
+    X, Y, kernel = load_data_and_init_kernel_fake(
         filename='../models/saved_models/params_fake.npz')
-    Y = a_mu
     cov_fn = kernel.K
 
 
@@ -48,7 +46,9 @@ class FakeODE:
     state_init = np.concatenate([pos_init, vel_init_guess])
     metric_fn = gp_metric_tensor
     # metric_fn_args = (gp.cov_fn, gp.X, gp.Y, gp.cov_weight)
-    metric_fn_args = [gp.cov_fn, gp.X, gp.Y, gp.cov_weight]
+    full_cov = True
+    metric_fn_args = [gp.X, gp.Y, gp.cov_weight]
+    # metric_fn_args = [gp.cov_fn, gp.X, gp.Y, gp.cov_weight]
     # metric_fn_args = [gp.cov_fn, gp.X, gp.Y]
     num_timesteps = 100
     times = np.linspace(0., 1., num_timesteps)

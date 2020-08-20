@@ -6,28 +6,36 @@ from jax import jacrev, jacfwd, vmap, partial, jit
 from jax.config import config
 config.update("jax_enable_x64", True)
 
-from ProbGeo.svgp import sparse_gp_jacobian
+from ProbGeo.svgp import svgp_jacobian
+from ProbGeo.typing import InputData, OutputData, MeanFunc, MeanAndVariance
 
 
-def gp_metric_tensor(test_inputs,
-                     cov_fn,
-                     X,
-                     Y,
-                     cov_weight,
-                     jitter=1.e-4,
-                     full_cov=True):
+def svgp_metric_tensor(Xnew: InputData,
+                       Z: InputData,
+                       kernel,
+                       mean_func: MeanFunc,
+                       q_mu: OutputData,
+                       full_cov: bool = True,
+                       q_sqrt=None,
+                       cov_weight: np.float64 = 1.,
+                       jitter: np.float64 = 1.e-4):
     def calc_expected_metric_tensor_single(x):
         if len(x.shape) == 1:
             x = x.reshape(1, input_dim)
-        mu_j, cov_j = gp_jacobian(cov_fn, x, X, Y, jitter=jitter)
-        # mu_j, cov_j = gp_jacobian_hard_coded(cov_fn, x, X, Y, jitter=jitter)
+        mu_j, cov_j = svgp_jacobian(x,
+                                    Z,
+                                    kernel,
+                                    mean_func,
+                                    q_mu,
+                                    full_cov=full_cov,
+                                    q_sqrt=q_sqrt,
+                                    jitter=jitter,
+                                    white=True)
+        mu_j = mu_j.reshape(input_dim, 1)
+        cov_j = cov_j.reshape(input_dim, input_dim)
+        # TODO move this reshape to inside svgp_jac
         assert mu_j.shape == (input_dim, 1)
         assert cov_j.shape == (input_dim, input_dim)
-
-        if not full_cov:
-            # TODO this should be inside gp_jacobian to improve comp speed
-            var_j = np.diagonal(cov_j)
-            cov_j = np.diag(var_j)
 
         expected_jac_outer_prod = np.matmul(mu_j,
                                             mu_j.T)  # [input_dim x input_dim]
@@ -37,12 +45,12 @@ def gp_metric_tensor(test_inputs,
         assert expected_metric_tensor.shape == (input_dim, input_dim)
         return expected_metric_tensor, mu_j, cov_j
 
-    num_test_inputs = test_inputs.shape[0]
-    input_dim = test_inputs.shape[1]
-    output_dim = Y.shape[1]
+    num_test_inputs = Xnew.shape[0]
+    input_dim = Xnew.shape[1]
+    output_dim = q_mu.shape[1]
 
     expected_metric_tensor, mu_j, cov_j = vmap(
-        calc_expected_metric_tensor_single, in_axes=(0))(test_inputs)
+        calc_expected_metric_tensor_single, in_axes=(0))(Xnew)
     return expected_metric_tensor, mu_j, cov_j
 
 
@@ -60,25 +68,16 @@ if __name__ == "__main__":
     from ProbGeo.visualisation.gp import plot_mean_and_var, plot_jacobian_mean, plot_jacobian_var
     from ProbGeo.visualisation.metric import plot_scatter_matrix, plot_metric_trace
     from ProbGeo.visualisation.utils import create_grid
-    from ProbGeo.svgp import sparse_gp_predict
+    from ProbGeo.svgp import svgp_predict
+    jitter = 1e-4
 
     X, Z, q_mu, q_sqrt, kernel, mean_func = load_data_and_init_kernel_sparse(
         filename='../models/saved_models/params_from_model.npz')
-    # filename='../models/saved_models/params_fake_sparse.npz')
-    cov_weight = 38
-    cov_weight = 0.15
-    print(X.shape)
-    print(Z.shape)
-    print(q_mu.shape)
-    print(q_sqrt.shape)
-    print(mean_func.shape)
-
-    # set the covariance function to use for the jacobian/metric
-    # cov_fn = kernel.K
+    cov_weight = 50
 
     # plot original GP
     Xnew, xx, yy = create_grid(X, N=961)
-    mu, cov = sparse_gp_predict(
+    mu, var = svgp_predict(
         Xnew,
         Z,
         kernel,
@@ -87,37 +86,28 @@ if __name__ == "__main__":
         full_cov=False,
         # full_cov=True,
         q_sqrt=q_sqrt,
-        jitter=1e-6)
-    # mu, cov = gp_predict(test_inputs, X, a_mu, kernel)
-    # var = np.diag(cov).reshape(-1, 1)
-    var = cov
+        jitter=jitter)
     axs = plot_mean_and_var(xx, yy, mu, var)
-    # plt.show()
 
-    mu_j, cov_j = sparse_gp_jacobian(Xnew,
-                                     Z,
-                                     kernel,
-                                     mean_func,
-                                     q_mu,
-                                     full_cov=True,
-                                     q_sqrt=q_sqrt)
-    # # calculate metric tensor and jacobian
-    # metric_tensor, mu_j, cov_j = gp_metric_tensor(test_inputs,
-    #                                               cov_fn,
-    #                                               X,
-    #                                               Y,
-    #                                               cov_weight=cov_weight)
+    metric_tensor, mu_j, cov_j = svgp_metric_tensor(Xnew,
+                                                    Z,
+                                                    kernel,
+                                                    mean_func,
+                                                    q_mu,
+                                                    full_cov=False,
+                                                    q_sqrt=q_sqrt,
+                                                    cov_weight=cov_weight,
+                                                    jitter=jitter)
 
     axs = plot_jacobian_mean(xx, yy, Xnew, mu_j, mu, var)
     plt.suptitle('E(J)')
 
     axs = plot_jacobian_var(xx, yy, Xnew, cov_j)
     plt.suptitle('Cov(J)')
+
+    axs = plot_metric_trace(xx, yy, metric_tensor)
+
+    axs = plot_scatter_matrix(Xnew, metric_tensor)
+    plt.suptitle('G(x)')
+
     plt.show()
-
-    # axs = plot_metric_trace(xx, yy, metric_tensor)
-
-    # axs = plot_scatter_matrix(test_inputs, metric_tensor)
-    # plt.suptitle('G(x)')
-
-    # plt.show()

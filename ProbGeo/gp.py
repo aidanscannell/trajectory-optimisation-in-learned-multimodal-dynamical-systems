@@ -8,30 +8,38 @@ from ProbGeo.conditionals import base_conditional
 from ProbGeo.typing import InputData, OutputData, MeanFunc, MeanAndVariance
 
 
-def gp_predict(
-        Xnew: InputData,
-        X: InputData,
-        kernel,
-        mean_func: MeanFunc,
-        Y: OutputData,
-        full_cov: bool = False,
-        # jitter=1e-8,
-        white: bool = True) -> MeanAndVariance:
+def gp_predict(Xnew: InputData,
+               X: InputData,
+               kernel,
+               mean_func: MeanFunc,
+               f: OutputData,
+               *,
+               full_cov: bool = False,
+               q_sqrt=None,
+               jitter=1e-6,
+               white: bool = True) -> MeanAndVariance:
     # TODO add noise???
     Kmm = Kuu(X, kernel)
+
+    Kmm += jitter * np.eye(Kmm.shape[0])
     Kmn = kernel.K(X, Xnew)
     if full_cov:
         Knn = kernel.K(Xnew, Xnew)
     else:
         Knn = kernel.Kdiag(Xnew)
 
+    if q_sqrt is not None:
+        # TODO map over output dimension
+        # q_sqrt = np.squeeze(q_sqrt)
+        q_sqrt = q_sqrt.reshape([q_sqrt.shape[-1], q_sqrt.shape[-1]])
+
     # TODO map over output dimension of Y??
-    fmean, fvar = base_conditional(Kmn,
-                                   Kmm,
-                                   Knn,
-                                   f=Y,
+    fmean, fvar = base_conditional(Kmn=Kmn,
+                                   Kmm=Kmm,
+                                   Knn=Knn,
+                                   f=f,
                                    full_cov=full_cov,
-                                   q_sqrt=None,
+                                   q_sqrt=q_sqrt,
                                    white=white)
     return fmean + mean_func, fvar
 
@@ -73,25 +81,31 @@ def gp_jacobian(Xnew: InputData,
                 X: InputData,
                 kernel,
                 mean_func: MeanFunc,
-                Y: OutputData,
+                f: OutputData,
                 full_cov: bool = False,
+                q_sqrt=None,
                 jitter=1e-6,
                 white: bool = True) -> MeanAndVariance:
     assert Xnew.shape[1] == X.shape[1]
     Kxx = kernel.K(X, X)
-    # Kxx = cov_fn(X, X)
     Kxx += jitter * np.eye(Kxx.shape[0])
-    # chol = sp.linalg.cholesky(Knn, lower=True)
     dKdx1 = jacobian_cov_fn_wrt_x1(kernel.K, Xnew, X)
     d2K = hessian_cov_fn_wrt_x1x1(kernel.K, Xnew)
-    mu_j, cov_j = base_conditional(dKdx1,
+
+    if q_sqrt is not None:
+        # TODO map over output dimension
+        # q_sqrt = np.squeeze(q_sqrt)
+        q_sqrt = q_sqrt.reshape([q_sqrt.shape[-1], q_sqrt.shape[-1]])
+
+    mu_j, cov_j = base_conditional(Kmn=dKdx1,
                                    Kmm=Kxx,
                                    Knn=d2K,
-                                   f=Y,
+                                   f=f,
                                    full_cov=full_cov,
-                                   q_sqrt=None,
+                                   q_sqrt=q_sqrt,
                                    white=white)
-    return mu_j + mean_func, cov_j
+    # TODO add derivative of mean_func - for constant mean_func this is zero
+    return mu_j, cov_j
 
 
 # def gp_jacobian(cov_fn, Xnew, X, Y, jitter=1e-4):

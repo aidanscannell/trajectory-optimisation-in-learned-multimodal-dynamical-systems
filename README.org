@@ -2,15 +2,17 @@
 
 This repo implements a trajectory optimisation method based on finding shortest paths (geodesics) on
 probabilistic manifolds governed by Gaussian processes (GP) or sparse variational GPs.
+The goal of the trajectory optimisation is to find a shortest path on the manifold whilst avoiding
+regions where one cannot be confident in the location of the manifold (low probability).
 
-Geodesic's can be modelled as a second order ODE and we are interested in solving the boundary
-value problem to find a geodesic curve that passes through our start and end positions.
+Geodesics can be modelled as a second order ODE and we are interested in solving the boundary
+value problem to find a geodesic curve that passes through target start and end positions.
 The goal of the boundary value problem is to find the optimal initial velocity which results in
 the curve ending at the target position.
 We implement a shooting method.
 
-It uses scipy's =solve_ivp= to integrate the ODE so it can use Runge Kutta (RK45),
+It uses scipys =solve_ivp= to integrate the ODE so it can use Runge Kutta (RK45),
 a collocation method (Radau) etc.
 The shooting method optimises the initial velocity of the geodesic ODE and uses the error
-between the integrated end position with the target end position in scipy's root
+between the integrated end position with the target end position in scipys root
 finder =root= where the tolerance and the maximum number of function evaluations can be set.

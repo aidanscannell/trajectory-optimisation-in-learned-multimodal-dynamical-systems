@@ -47,13 +47,26 @@ def base_conditional_with_lm(Kmn,
         q_sqrt_dims = len(q_sqrt.shape)
         if q_sqrt_dims == 2:
             # LTA = sp.linalg.solve_triangular(Lm, q_sqrt)
+            # print('LTA')
+            # print(LTA.shape)
+            # LTALTA = A.T @ LTA
+            # print(LTALTA.shape)
             LTA = q_sqrt.T @ A
+            # q_sqrtT = q_sqrt.T
+            # print(q_sqrtT[:, :, None].shape)
+            # LTA = A * q_sqrtT[:, :, None]
+            # print('LTA')
+            # print(LTA.shape)
+            # LTA = A * tf.expand_dims(tf.transpose(q_sqrt), 2)  # [R, M, N]
         else:  # pragma: no cover
             raise ValueError("Bad dimension for q_sqrt: %s" % str(q_sqrt_dims))
 
         if full_cov:
             # fvar = fvar + LTA @ LTA.T
             fvar = fvar + LTA.T @ LTA
+            # fvar = fvar + LTALTA @ LTALTA.T
+            print('fvar')
+            print(fvar.shape)
         else:
             fvar = fvar + np.sum(np.square(LTA), -2)
 

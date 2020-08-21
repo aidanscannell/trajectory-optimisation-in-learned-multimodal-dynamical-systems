@@ -52,7 +52,7 @@ def shooting_geodesic_solver(pos_init,
                              pos_end_targ,
                              vel_init_guess,
                              metric_fn,
-                             metric_fn_args,
+                             metric_fn_kwargs,
                              times,
                              t_init=0.,
                              t_end=1.,
@@ -60,10 +60,10 @@ def shooting_geodesic_solver(pos_init,
                              root_tol=0.05,
                              maxfev=1000):
     def ode_fn(t, state):
-        return geodesic_ode(t, state, metric_fn, metric_fn_args)
+        return geodesic_ode(t, state, metric_fn, metric_fn_kwargs)
 
     error_geodesic_vel_args = (pos_init, pos_end_targ, metric_fn,
-                               metric_fn_args, times, t_init, t_end,
+                               metric_fn_kwargs, times, t_init, t_end,
                                int_method)
     opt_result = root(
         error_geodesic_vel,

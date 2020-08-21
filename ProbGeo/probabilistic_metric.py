@@ -1,7 +1,7 @@
 import jax.numpy as np
 import jax.scipy as sp
 import matplotlib.pyplot as plt
-from derivative_kernel_gpy import DiffRBF
+from kernels import DiffRBF
 from jax import jit, partial, vmap, jacfwd, hessian, jacrev
 from utils.metric_utils import (create_grid, init_save_path, plot_gradient,
                                 plot_mean_and_var, plot_metric_trace)

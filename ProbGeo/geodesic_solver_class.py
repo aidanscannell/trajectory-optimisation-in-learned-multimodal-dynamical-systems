@@ -7,10 +7,10 @@ from utils.metric_utils import (create_grid, init_save_path, plot_gradient,
                                 plot_mean_and_var, plot_mean_and_var_contour,
                                 plot_metric_trace)
 # from utils.visualise_metric import load_data_and_init_kernel_fake, create_grid, plot_mean_and_var
-from utils.sparse_gp_helpers import gp_predict_sparse
+# from utils.sparse_gp_helpers import gp_predict_sparse
 from gp import gp_predict
 # from probabilistic_geodesic import geodesic_fun
-from derivative_kernel_gpy import DiffRBF
+from kernels import DiffRBF
 
 from jax import numpy as np
 
@@ -111,8 +111,10 @@ def test_standard_gp(save_img_dir='visualise_metric_tensor',
 
     # plot original GP
     xy, xx, yy = create_grid(X, N=961)
-    mu, cov = gp_predict(xy, X, a_mu, kernel)
-    var = np.diag(cov).reshape(-1, 1)
+    # mu, cov = gp_predict(xy, X, a_mu, kernel)
+    mean_func = 0.
+    mu, var = gp_predict(xy, X, kernel, mean_func, f=a_mu, full_cov=False)
+    # var = np.diag(cov).reshape(-1, 1)
     test_inputs = xy
 
     mean_func = a_mu
@@ -184,8 +186,10 @@ if __name__ == "__main__":
     # Plot manifold with start and end points
     xy, xx, yy = create_grid(X, N=961)
     test_inputs = xy
-    mu, cov = gp_predict(xy, X, Y, kernel)
-    var = np.diag(cov).reshape(-1, 1)
+    mean_func = 0.
+    mu, var = gp_predict(xy, X, kernel, mean_func, f=Y, full_cov=False)
+    # mu, cov = gp_predict(xy, X, Y, kernel)
+    # var = np.diag(cov).reshape(-1, 1)
     axs = plot_mean_and_var(xy, mu, var)
     for ax in axs:
         # ax.plot(x_alpha, y_alpha, 'b')

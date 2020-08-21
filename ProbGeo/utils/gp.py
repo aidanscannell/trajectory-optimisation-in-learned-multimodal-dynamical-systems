@@ -1,5 +1,4 @@
 from jax import numpy as np
-from jax import scipy as sp
 from ProbGeo.kernels import DiffRBF
 
 

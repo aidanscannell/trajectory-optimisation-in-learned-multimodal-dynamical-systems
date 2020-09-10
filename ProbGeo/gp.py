@@ -21,7 +21,7 @@ def gp_predict(Xnew: InputData,
     # TODO add noise???
     Kmm = Kuu(X, kernel)
 
-    Kmm += jitter * np.eye(Kmm.shape[0])
+    # Kmm += jitter * np.eye(Kmm.shape[0])
     Kmn = kernel.K(X, Xnew)
     if full_cov:
         Knn = kernel.K(Xnew, Xnew)
@@ -34,6 +34,7 @@ def gp_predict(Xnew: InputData,
         q_sqrt = q_sqrt.reshape([q_sqrt.shape[-1], q_sqrt.shape[-1]])
 
     # TODO map over output dimension of Y??
+    # f += mean_func
     fmean, fvar = base_conditional(Kmn=Kmn,
                                    Kmm=Kmm,
                                    Knn=Knn,
@@ -41,6 +42,7 @@ def gp_predict(Xnew: InputData,
                                    full_cov=full_cov,
                                    q_sqrt=q_sqrt,
                                    white=white)
+    # return fmean, fvar
     return fmean + mean_func, fvar
 
 

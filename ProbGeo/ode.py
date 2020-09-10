@@ -1,9 +1,5 @@
-from jax import jacfwd, jit, jvp, partial, tree_map, vmap
-from jax.interpreters import batching
-from jax import linear_util as lu
+from jax import jacfwd, jit, partial, vmap
 from jax import numpy as np
-from scipy.integrate import solve_ivp
-from scipy.optimize import root
 
 from ProbGeo.metric_tensor import calc_vec_metric_tensor
 

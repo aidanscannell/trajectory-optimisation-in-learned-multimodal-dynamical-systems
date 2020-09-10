@@ -7,7 +7,7 @@ from ProbGeo.visualisation.gp import plot_mean_and_var
 from ProbGeo.visualisation.utils import create_grid
 
 load_data_filename = '../../data/processed/artificial_data_2d.npz'
-save_params_filename = '../../models/saved_models/params_fake_sparse_20-08_2'
+save_params_filename = '../../models/saved_models/params_fake_sparse_26-08'
 
 batch_size = 400
 epochs = 1500
@@ -26,7 +26,7 @@ input_dim = X.shape[1]
 output_dim = Y.shape[1]
 
 mean_func = gpf.mean_functions.Constant()
-lik = gpf.likelihoods.Gaussian(1e-5)
+lik = gpf.likelihoods.Gaussian(2e-6)
 lengthscales = np.array([1, 1])
 kern = gpf.kernels.RBF(lengthscales=lengthscales)
 
@@ -47,9 +47,9 @@ gpf.set_trainable(m.inducing_variable, False)
 gpf.utilities.print_summary(m)
 
 Xnew, xx, yy = create_grid(X, N=961)
-mu, var = m.predict_y(Xnew)
-fig, axs = plot_mean_and_var(xx, yy, mu.numpy(), var.numpy())
-plt.show()
+# mu, var = m.predict_y(Xnew)
+# fig, axs = plot_mean_and_var(xx, yy, mu.numpy(), var.numpy())
+# plt.show()
 
 optimizer = tf.optimizers.Adam()
 

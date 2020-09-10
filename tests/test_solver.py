@@ -15,7 +15,10 @@ class FakeGP:
 class FakeSVGP:
     from ProbGeo.utils.gp import load_data_and_init_kernel_sparse
     X, Z, q_mu, q_sqrt, kernel, mean_func = load_data_and_init_kernel_sparse(
-        filename='../models/saved_models/params_fake_sparse_20-08_2.npz')
+        # filename='../models/saved_models/params_fake_sparse_26-08.npz')
+        filename='../models/saved_models/params_from_model.npz')
+    # filename='../models/saved_models/params_fake_sparse_20-08.npz')
+    # filename='../models/saved_models/params_fake_sparse_20-08_2.npz')
 
 
 class FakeGPMetric:
@@ -181,6 +184,13 @@ def test_and_plot_shooting_geodesic_solver_with_svgp():
     # Plot manifold with start and end points
     gp = FakeSVGP()
     solver = FakeODESolverSVGP()
+
+    # # load_data_filename = '../data/processed/artificial_data_2d.npz'
+    # load_data_filename = '../models/saved_models/params_from_model.npz'
+    # data = np.load(load_data_filename)
+    # X = data['x']
+    # Xnew, xx, yy = create_grid(X, N=961)
+
     Xnew, xx, yy = create_grid(gp.X, N=961)
     mu, var = gp_predict(
         Xnew,
@@ -188,10 +198,10 @@ def test_and_plot_shooting_geodesic_solver_with_svgp():
         kernel=gp.kernel,
         mean_func=gp.mean_func,
         f=gp.q_mu,
-        full_cov=False,
-        # full_cov=True,
+        # full_cov=False,
+        full_cov=True,
         q_sqrt=gp.q_sqrt)
-    # var = np.diag(var)
+    var = np.diag(var)
     fig, axs = plot_mean_and_var(xx, yy, mu, var)
 
     for ax in axs:
@@ -205,7 +215,7 @@ def test_and_plot_shooting_geodesic_solver_with_svgp():
                    marker='o')
         ax.annotate("start", (solver.pos_init[0], solver.pos_init[1]))
         ax.annotate("end", (solver.pos_end_targ[0], solver.pos_end_targ[1]))
-    # plt.show()
+    plt.show()
 
     opt_vel_init, geodesic_traj = test_shooting_geodesic_solver_with_svgp()
 

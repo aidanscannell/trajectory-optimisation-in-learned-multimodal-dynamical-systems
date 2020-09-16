@@ -85,6 +85,7 @@ def base_conditional_with_lm(Kmn,
             print('fvar')
             print(fvar.shape)
         else:
-            fvar = fvar + np.sum(np.square(LTA), -2)
+            # fvar = fvar + np.sum(np.square(LTA), -2)
+            fvar = fvar + np.sum(np.square(LTA), -1)
 
     return fmean, fvar

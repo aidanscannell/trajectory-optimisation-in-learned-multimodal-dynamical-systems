@@ -32,9 +32,29 @@ def hessian_cov_fn_wrt_x1x1(cov_fn, x1):
     :param x1: [1, input_dim]
     """
     def cov_fn_(x1):
+        x1 = x1.reshape([1, -1])
         return cov_fn(x1, x1)
 
+    print('inside hessian cov_fn')
+    print(x1.shape)
+    x1 = x1.reshape(-1)
     d2k = jacrev(jacfwd(cov_fn_))(x1)
+    print(d2k.shape)
     # TODO replace squeeze with correct dimensions
     d2k = np.squeeze(d2k)
+
+    return d2k
+
+
+def hessian_cov_fn_wrt_x1x1_hard_coded(cov_fn, lengthscale, x1):
+    """Calculate derivative of cov_fn(x1, x1) wrt to x1
+
+    :param cov_fn: covariance function with signature cov_fn(x1, x1)
+    :param x1: [1, input_dim]
+    """
+    # lengthscale = np.array([0.4, 0.4])
+    l2 = lengthscale**2
+    # l2 = kernel.lengthscale**2
+    l2 = np.diag(l2)
+    d2k = l2 * cov_fn(x1, x1)
     return d2k

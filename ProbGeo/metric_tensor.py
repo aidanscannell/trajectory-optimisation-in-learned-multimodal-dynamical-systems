@@ -92,13 +92,18 @@ def gp_metric_tensor(Xnew: InputData,
                                             mu_j.T)  # [input_dim x input_dim]
         assert expected_jac_outer_prod.shape == (input_dim, input_dim)
 
-        expected_metric_tensor = expected_jac_outer_prod + cov_weight * output_dim * cov_j
+        # expected_metric_tensor = expected_jac_outer_prod + cov_weight * output_dim * cov_j
+        expected_metric_tensor = expected_jac_outer_prod + cov_weight * cov_j
+        # expected_metric_tensor = cov_weight * cov_j.T
+        # expected_metric_tensor = cov_j
         assert expected_metric_tensor.shape == (input_dim, input_dim)
         return expected_metric_tensor, mu_j, cov_j
 
     num_test_inputs = Xnew.shape[0]
     input_dim = Xnew.shape[1]
     output_dim = f.shape[1]
+    print('inside gp_metric_tensor')
+    print(output_dim)
 
     expected_metric_tensor, mu_j, cov_j = jax.vmap(
         calc_expected_metric_tensor_single, in_axes=(0))(Xnew)

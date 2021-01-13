@@ -29,10 +29,10 @@ def metric_tensor_fn(Xnew, fun, fun_kwargs):
     assert metric_tensor.shape == (num_test, input_dim, input_dim)
     print('metric yo')
     print(metric_tensor.shape)
-    print(metric_tensor)
+    # print(metric_tensor)
 
-    return metric_tensor.reshape(input_dim, input_dim), jac
-    # return metric_tensor, jac
+    # return metric_tensor.reshape(input_dim, input_dim), jac
+    return metric_tensor, jac
 
 
 # def mogpe_mixing_prob_metric_tensor(Xnew: InputData,
@@ -112,6 +112,8 @@ def gp_metric_tensor(Xnew: InputData,
 
 @jax.partial(jax.jit, static_argnums=(1, 2))
 def calc_vec_metric_tensor(pos, metric_fn, metric_fn_kwargs):
+    print('here calc vec metric tensor')
+    print(pos.shape)
     pos = pos.reshape(1, -1)
     try:
         metric_tensor, _ = metric_fn(pos, **metric_fn_kwargs)

@@ -11,6 +11,8 @@ def base_conditional(Kmn,
                      q_sqrt=None,
                      white=False):
     # Lm = sp.linalg.cho_factor(Kmm)
+    print('Kmm')
+    print(Kmm.shape)
     Lm = sp.linalg.cholesky(Kmm, lower=True)
     return base_conditional_with_lm(
         Kmn=Kmn,

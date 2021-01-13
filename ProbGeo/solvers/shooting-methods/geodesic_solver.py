@@ -4,15 +4,14 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 from jax import numpy as np
-from jax import scipy as sp
+from ProbGeo.gp.kernels import DiffRBF
+from ProbGeo.utils.visualise_metric import (create_grid, gp_predict,
+                                            load_data_and_init_kernel_fake,
+                                            plot_mean_and_var)
 from scipy.integrate import solve_ivp
 from scipy.optimize import root
-from derivative_kernel_gpy import DiffRBF
 
-from probabilistic_geodesic import geodesic_fun
-from utils.visualise_metric import (create_grid, gp_predict,
-                                    load_data_and_init_kernel_fake,
-                                    plot_mean_and_var)
+from .probabilistic_geodesic import geodesic_fun
 
 
 def compute_zprime(x, z, ode_func, ode_args):
@@ -32,14 +31,16 @@ def compute_zprime(x, z, ode_func, ode_args):
     return [z[2], z[3], zprime_1[0, 0], zprime_1[1, 0]]
 
 
-def integrate_over_domain(z_at_0,
-                          ode_func,
-                          ode_args,
-                          integrator='RK45',
-                          length=1,
-                          step=0.2,
-                          max_step=0.001,
-                          silent=True):
+def integrate_over_domain(
+    z_at_0,
+    ode_func,
+    ode_args,
+    integrator="RK45",
+    length=1,
+    step=0.2,
+    max_step=0.001,
+    silent=True,
+):
     """
     Call runge-kutta repeatedly to integrate the vector function z over the full domain (specified by length). Return
     a list of 2-vecs which are the value of the vector z at every point in the domain discretized by 'step'. Note that
@@ -52,33 +53,36 @@ def integrate_over_domain(z_at_0,
     :param silent: bool indicating whether to print the progress of the integrator
     :return: array of 2-vecs - the value of vector z obtained by integration for each point in the discretized domain.
     """
-    t = np.linspace(0., length, int(length / step))
+    t = np.linspace(0.0, length, int(length / step))
     z_at_0 = np.array(z_at_0)
 
     integrator = solve_ivp(
         fun=lambda t, y: compute_zprime(t, y, ode_func, ode_args),
-        t_span=(0., length),
+        t_span=(0.0, length),
         y0=z_at_0,
         t_eval=t,
         max_step=max_step,
-        method=integrator)
+        method=integrator,
+    )
     # dense_output=True)
     print(integrator)
     return integrator.t, integrator.y
 
 
-def solve_bvp_tj(y_at_0,
-                 y_at_length,
-                 yprime_at_0_guess,
-                 ode_func,
-                 ode_args,
-                 integrator,
-                 length=1,
-                 step=0.2,
-                 root_tol=0.05,
-                 maxfev=10000,
-                 max_step=0.001,
-                 silent=True):
+def solve_bvp_tj(
+    y_at_0,
+    y_at_length,
+    yprime_at_0_guess,
+    ode_func,
+    ode_args,
+    integrator,
+    length=1,
+    step=0.2,
+    root_tol=0.05,
+    maxfev=10000,
+    max_step=0.001,
+    silent=True,
+):
     """
     Numerically find the value for y'(0) that gives us a propagated
     (integrated) solution matching most closely with other known boundary
@@ -93,26 +97,31 @@ def solve_bvp_tj(y_at_0,
     :param root_tol: tolerance of root finder
     :return: the optimized estimate of y' at the left boundary point giving the most accurate integrated solution.
     """
+
     def residuals(yprime_at_0, y_at_0, y_at_length):
         # Use RK to compute [y, y'] over the domain given the values for y, y' at the boundary
-        print('Trying yprime_at_0: (%.8f, %.8f)' %
-              (yprime_at_0[0], yprime_at_0[1]))
+        print(
+            "Trying yprime_at_0: (%.8f, %.8f)"
+            % (yprime_at_0[0], yprime_at_0[1])
+        )
         z_at_0 = [y_at_0[0], y_at_0[1], yprime_at_0[0], yprime_at_0[1]]
-        xs, zs = integrate_over_domain(z_at_0,
-                                       ode_func,
-                                       ode_args,
-                                       integrator,
-                                       length=length,
-                                       step=step,
-                                       max_step=max_step,
-                                       silent=silent)
+        xs, zs = integrate_over_domain(
+            z_at_0,
+            ode_func,
+            ode_args,
+            integrator,
+            length=length,
+            step=step,
+            max_step=max_step,
+            silent=silent,
+        )
         # y_at_length_integrated = np.array(zs)[-1, 0:2]
         y_at_length_integrated = np.array(zs)[0:2, -1]
 
         # Return the difference between y(L) found by numerical integrator and the true value
         y_at_length = np.array(y_at_length)
         error = y_at_length - y_at_length_integrated
-        print('Residual [y(0)-y(L)] for current y\'(0): ', error)
+        print("Residual [y(0)-y(L)] for current y'(0): ", error)
         return error
 
     yprime_at_0_guess = np.array(yprime_at_0_guess)
@@ -122,8 +131,9 @@ def solve_bvp_tj(y_at_0,
         yprime_at_0_guess,
         args=(y_at_0, y_at_length),
         # jac=loss_jac,
-        options={'maxfev': maxfev},
-        tol=root_tol)
+        options={"maxfev": maxfev},
+        tol=root_tol,
+    )
     yprime_at_0_estimate = rt.x
     return yprime_at_0_estimate
 
@@ -131,34 +141,48 @@ def solve_bvp_tj(y_at_0,
 def load_data_and_init_kernel(filename):
     # Load kernel hyper-params and create kernel
     params = np.load(filename)
-    lengthscale = params['l']  # [2]
-    var = params['var']  # [1]
-    X = params['x']  # [num_data x 2]
-    Y = params['y']  # [num_data x 2]
-    z = params['z']  # [num_data x 2]
-    q_mu = params['q_mu']  # [num_data x 1] mean of alpha
-    q_sqrt = params['q_sqrt']  # [num_data x 1] variance of alpha
-    h_mu = params['h_mu']  # [num_data x 1] mean of alpha
-    h_var = params['h_var']  # [num_data x 1] variance of alpha
-    m_h_mu = params['m_h_mu']  # [num_data x 1] mean of alpha
-    m_h_var = params['m_h_var']  # [num_data x 1] variance of alpha
-    xx = params['xx']
-    yy = params['yy']
-    xy = params['xy']
-    mean_func = params['mean_func']
+    lengthscale = params["l"]  # [2]
+    var = params["var"]  # [1]
+    X = params["x"]  # [num_data x 2]
+    Y = params["y"]  # [num_data x 2]
+    z = params["z"]  # [num_data x 2]
+    q_mu = params["q_mu"]  # [num_data x 1] mean of alpha
+    q_sqrt = params["q_sqrt"]  # [num_data x 1] variance of alpha
+    h_mu = params["h_mu"]  # [num_data x 1] mean of alpha
+    h_var = params["h_var"]  # [num_data x 1] variance of alpha
+    m_h_mu = params["m_h_mu"]  # [num_data x 1] mean of alpha
+    m_h_var = params["m_h_var"]  # [num_data x 1] variance of alpha
+    xx = params["xx"]
+    yy = params["yy"]
+    xy = params["xy"]
+    mean_func = params["mean_func"]
 
-    kernel = DiffRBF(X.shape[1],
-                     variance=var,
-                     lengthscale=lengthscale,
-                     ARD=True)
-    return X, Y, h_mu, h_var, z, q_mu, q_sqrt, kernel, mean_func, xx, yy, xy, m_h_mu, m_h_var
+    kernel = DiffRBF(
+        X.shape[1], variance=var, lengthscale=lengthscale, ARD=True
+    )
+    return (
+        X,
+        Y,
+        h_mu,
+        h_var,
+        z,
+        q_mu,
+        q_sqrt,
+        kernel,
+        mean_func,
+        xx,
+        yy,
+        xy,
+        m_h_mu,
+        m_h_var,
+    )
 
 
 # Set parameters for integrator
-length = 1.
+length = 1.0
 step = 0.05
 max_step = 0.001
-integrator = 'RK45'
+integrator = "RK45"
 ode_func = geodesic_fun
 
 # Set parameters for root finder
@@ -166,14 +190,15 @@ root_tol = 0.05
 maxfev = 10000  # max function evaluations for root finder
 
 # Set boundary conditions and create state vector at t=0
-y_at_length = [-2., 2.5]
-y_at_0 = [2., -2.8]
+y_at_length = [-2.0, 2.5]
+y_at_0 = [2.0, -2.8]
 yprime_at_0 = [-5.64100643, 3.95933075]
 z_at_0 = y_at_0 + yprime_at_0
 
 # Load probabilistic manifold (GP) data
 X, a_mu, a_var, kernel = load_data_and_init_kernel_fake(
-    filename='saved_models/params_fake.npz')
+    filename="saved_models/params_fake.npz"
+)
 Y = a_mu
 
 # Initialise args for ode func (compute_zprime)
@@ -186,35 +211,39 @@ var = np.diag(cov).reshape(-1, 1)
 axs = plot_mean_and_var(xy, mu, var)
 for ax in axs:
     # ax.scatter(X[:, 0], X[:, 1], color='k', marker='x')
-    ax.scatter(y_at_0[0], y_at_0[1], marker='o', color='r')
-    ax.scatter(y_at_length[0], y_at_length[1], color='r', marker='o')
+    ax.scatter(y_at_0[0], y_at_0[1], marker="o", color="r")
+    ax.scatter(y_at_length[0], y_at_length[1], color="r", marker="o")
     ax.annotate("start", (y_at_0[0], y_at_0[1]))
     ax.annotate("end", (y_at_length[0], y_at_length[1]))
 plt.show()
 
 # Solve the BVP using the shooting method (with a root finder)
-yprime_at_0_estimate = solve_bvp_tj(y_at_0,
-                                    y_at_length,
-                                    yprime_at_0_guess=yprime_at_0,
-                                    ode_func=ode_func,
-                                    ode_args=ode_args,
-                                    integrator=integrator,
-                                    length=length,
-                                    step=step,
-                                    max_step=max_step,
-                                    root_tol=root_tol,
-                                    silent=False)
+yprime_at_0_estimate = solve_bvp_tj(
+    y_at_0,
+    y_at_length,
+    yprime_at_0_guess=yprime_at_0,
+    ode_func=ode_func,
+    ode_args=ode_args,
+    integrator=integrator,
+    length=length,
+    step=step,
+    max_step=max_step,
+    root_tol=root_tol,
+    silent=False,
+)
 
-print('Optimised y\'(0): ', yprime_at_0_estimate)
+print("Optimised y'(0): ", yprime_at_0_estimate)
 z_at_0 = y_at_0 + list(yprime_at_0_estimate)
-xs, zs = integrate_over_domain(z_at_0,
-                               ode_func,
-                               ode_args,
-                               integrator,
-                               length=length,
-                               step=step,
-                               max_step=max_step,
-                               silent=False)
+xs, zs = integrate_over_domain(
+    z_at_0,
+    ode_func,
+    ode_args,
+    integrator,
+    length=length,
+    step=step,
+    max_step=max_step,
+    silent=False,
+)
 
 plt.close()
 axs = plot_mean_and_var(xy, mu, var)
@@ -222,10 +251,10 @@ x = np.array(y_at_0).reshape(1, 2)
 z = np.array(zs).T
 z = np.append(x, z[:, 0:2], axis=0)
 for ax in axs:
-    ax.scatter(z[:, 0], z[:, 1], marker='x', color='k')
-    ax.plot(z[:, 0], z[:, 1], marker='x', color='k')
-    ax.scatter(y_at_0[0], y_at_0[1], marker='o', color='r')
-    ax.scatter(y_at_length[0], y_at_length[1], color='r', marker='o')
+    ax.scatter(z[:, 0], z[:, 1], marker="x", color="k")
+    ax.plot(z[:, 0], z[:, 1], marker="x", color="k")
+    ax.scatter(y_at_0[0], y_at_0[1], marker="o", color="r")
+    ax.scatter(y_at_length[0], y_at_length[1], color="r", marker="o")
     ax.annotate("start", (y_at_0[0], y_at_0[1]))
     ax.annotate("end", (y_at_length[0], y_at_length[1]))
 
@@ -233,10 +262,18 @@ date = datetime.datetime.now()
 date_str = str(date.day) + "-" + str(date.month)
 save_dirname = "../images/geodesic/" + date_str
 Path(save_dirname).mkdir(parents=True, exist_ok=True)
-traj_str = 'x1(0):' + str(y_at_0[0]) + '-x2(0):' + str(
-    y_at_0[1]) + '--' + 'x1(L):' + str(y_at_length[0]) + '-x2(L):' + str(
-        y_at_length[1])
-traj_str = re.sub('[.]', '', traj_str)
-plt.suptitle('Probabilistic Goedesic')
-plt.savefig(save_dirname + '/' + traj_str + '.pdf', transparent=True)
+traj_str = (
+    "x1(0):"
+    + str(y_at_0[0])
+    + "-x2(0):"
+    + str(y_at_0[1])
+    + "--"
+    + "x1(L):"
+    + str(y_at_length[0])
+    + "-x2(L):"
+    + str(y_at_length[1])
+)
+traj_str = re.sub("[.]", "", traj_str)
+plt.suptitle("Probabilistic Goedesic")
+plt.savefig(save_dirname + "/" + traj_str + ".pdf", transparent=True)
 plt.show()

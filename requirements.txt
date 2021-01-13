@@ -1,5 +1,0 @@
-jax
-jaxlib
-numpy
-scipy
--e /Users/aidanscannell/Developer/forked-repos/GPy

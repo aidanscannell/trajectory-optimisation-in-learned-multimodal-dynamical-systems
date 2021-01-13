@@ -2,16 +2,11 @@ from jax import numpy as np
 from jax import scipy as sp
 
 
-def base_conditional(Kmn,
-                     Kmm,
-                     Knn,
-                     f,
-                     *,
-                     full_cov=False,
-                     q_sqrt=None,
-                     white=False):
+def base_conditional(
+    Kmn, Kmm, Knn, f, full_cov=False, q_sqrt=None, white=False
+):
     # Lm = sp.linalg.cho_factor(Kmm)
-    print('Kmm')
+    print("Kmm")
     print(Kmm.shape)
     Lm = sp.linalg.cholesky(Kmm, lower=True)
     return base_conditional_with_lm(
@@ -22,17 +17,13 @@ def base_conditional(Kmn,
         f=f,
         full_cov=full_cov,
         q_sqrt=q_sqrt,
-        white=white)
+        white=white,
+    )
 
 
-def base_conditional_with_lm(Kmn,
-                             Lm,
-                             Knn,
-                             f,
-                             *,
-                             full_cov=False,
-                             q_sqrt=None,
-                             white=False):
+def base_conditional_with_lm(
+    Kmn, Lm, Knn, f, full_cov=False, q_sqrt=None, white=False
+):
     # c, low = sp.linalg.cho_factor(Lm)
     # A = sp.linalg.cho_solve(Lm, Kmn)
     A = sp.linalg.solve_triangular(Lm, Kmn, lower=True)
@@ -59,7 +50,7 @@ def base_conditional_with_lm(Kmn,
         q_sqrt_dims = len(q_sqrt.shape)
         if q_sqrt_dims == 2:
             # LTA = sp.linalg.solve_triangular(Lm, q_sqrt)
-            print('LTA')
+            print("LTA")
             print(q_sqrt.shape)
             print(A.shape)
             # B = sp.linalg.cho_solve(Lm, q_sqrt)
@@ -84,7 +75,7 @@ def base_conditional_with_lm(Kmn,
             fvar = fvar + LTA @ LTA.T
             # fvar = fvar + LTA.T @ LTA
             # fvar = fvar + LTALTA @ LTALTA.T
-            print('fvar')
+            print("fvar")
             print(fvar.shape)
         else:
             # fvar = fvar + np.sum(np.square(LTA), -2)

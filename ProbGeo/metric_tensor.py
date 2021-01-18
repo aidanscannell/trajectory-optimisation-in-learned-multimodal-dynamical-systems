@@ -1,20 +1,8 @@
 import jax
 import jax.numpy as np
-import matplotlib.pyplot as plt
-from gpjax.custom_types import InputData, MeanAndVariance, MeanFunc, OutputData
+from gpjax.custom_types import InputData, MeanFunc, OutputData
+from gpjax.kernels import Kernel
 from gpjax.prediction import gp_jacobian
-
-# from ProbGeo.gp.gp import (
-#     InputData,
-#     MeanAndVariance,
-#     MeanFunc,
-#     OutputData,
-#     gp_jacobian,
-#     gp_predict,
-# )
-from ProbGeo.mogpe import mogpe_mixing_prob_jacobian
-
-# from ProbGeo.gp.gp import InputData, MeanFunc, OutputData
 
 
 # @jax.partial(jax.jit, static_argnums=(1, 2))
@@ -22,7 +10,7 @@ def metric_tensor_fn(Xnew, fun, fun_kwargs):
     def single_jac(x_new):
         # x_new = x_new.reshape(1, -1)
         jac = jax.jacfwd(fun, (0))(x_new, **fun_kwargs)
-        print('single jac')
+        print("single jac")
         print(jac.shape)
         return jac
 

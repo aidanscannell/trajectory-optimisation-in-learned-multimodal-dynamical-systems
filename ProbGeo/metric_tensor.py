@@ -1,10 +1,20 @@
 import jax
 import jax.numpy as np
 import matplotlib.pyplot as plt
+from gpjax.custom_types import InputData, MeanAndVariance, MeanFunc, OutputData
+from gpjax.prediction import gp_jacobian
 
-from ProbGeo.gp import gp_jacobian
+# from ProbGeo.gp.gp import (
+#     InputData,
+#     MeanAndVariance,
+#     MeanFunc,
+#     OutputData,
+#     gp_jacobian,
+#     gp_predict,
+# )
 from ProbGeo.mogpe import mogpe_mixing_prob_jacobian
-from ProbGeo.typing import InputData, OutputData, MeanFunc
+
+# from ProbGeo.gp.gp import InputData, MeanFunc, OutputData
 
 
 # @jax.partial(jax.jit, static_argnums=(1, 2))

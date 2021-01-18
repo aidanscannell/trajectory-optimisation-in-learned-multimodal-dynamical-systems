@@ -75,19 +75,9 @@ GitHub.sublime-settings
 
 # End of https://www.gitignore.io/api/jupyternotebooks,macos,sublimetext
 
-# Ignore GPy and GPflow
-GPy
-GPflow
-BMSMGP_old
-
-notebooks/img/
-notebooks/model-tensorboard/
-notebooks/monitor-saves/
-notebooks/saved_models/
-notebooks/superseeded/
-
 
 */__pycache__/*
+__pycache__
 
 # Sphinx documentation
 docs/_build/    
@@ -95,9 +85,8 @@ docs/build/
 
 */superseeded/
 
-BMNSVGP/saved_models
-# data/csv
-BMNSVGP/utils/__pycache__/*
-data/scripts/images
 images
 superseeded
+
+*~
+.envrc

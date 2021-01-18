@@ -1,4 +1,0 @@
-* probabilistic-geodesic-traj-opt
-# :PROPERTIES:
-# :DESCRIPTION: TODOs for probabilistic-geodesic-traj-opt project
-# :END:

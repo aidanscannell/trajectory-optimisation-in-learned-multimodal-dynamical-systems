@@ -1,9 +1,10 @@
 import jax
-from jax import numpy as np
+from gpjax.custom_types import InputData, MeanAndVariance, MeanFunc, OutputData
+# from ProbGeo.gp.gp import (InputData, MeanAndVariance, MeanFunc, OutputData,
+#                            gp_predict)
+from gpjax.prediction import gp_predict
 from jax import jacfwd, jacrev
-
-from ProbGeo.typing import InputData, OutputData, MeanFunc, MeanAndVariance
-from ProbGeo.gp import gp_predict
+from jax import numpy as np
 
 
 def inv_probit(x):

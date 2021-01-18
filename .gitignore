@@ -86,7 +86,9 @@ docs/build/
 */superseeded/
 
 images
-superseeded
+superseded
 
 *~
 .envrc
+reports
+data

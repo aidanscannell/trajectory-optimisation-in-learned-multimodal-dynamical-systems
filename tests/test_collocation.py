@@ -10,7 +10,7 @@ from jax.config import config
 from matplotlib import cm
 # from ProbGeo.collocation import (collocation, collocation_,
 #                                  collocation_no_constraint, collocation_root)
-from ProbGeo.collocation import collocation
+from ProbGeo.collocation import collocation, collocation_
 from ProbGeo.gp_old.utils import (load_data_and_init_kernel_fake,
                                   load_data_and_init_kernel_mogpe,
                                   load_data_and_init_kernel_sparse)
@@ -1381,9 +1381,13 @@ def test_collocation_svgp_quad():
     # geodesic_traj = collocation_root(solver.state_guesses, solver.pos_init,
     #                                  solver.pos_end_targ, metric_fn,
     #                                  metric.metric_fn_kwargs, solver.times)
-    # geodesic_traj = collocation_(solver.pos_init, solver.pos_end_targ,
-    #                              metric_fn, metric.metric_fn_kwargs,
-    #                              solver.times)
+    # geodesic_traj = collocation_(
+    #     solver.pos_init,
+    #     solver.pos_end_targ,
+    #     metric_fn,
+    #     metric.metric_fn_kwargs,
+    #     solver.times,
+    # )
     return geodesic_traj
 
 

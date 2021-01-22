@@ -80,6 +80,7 @@ def collocation_objective(
 def collocation(
     state_guesses, pos_init, pos_end_targ, metric_fn, metric_fn_kwargs, times
 ):
+
     def collocation_constraint_fn(state_guesses):
         # state_guesses = state_guesses[:-1]
         input_dim = 2

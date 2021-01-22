@@ -102,7 +102,7 @@ class SVGP:
 
 
 # How may collocation points to use in solver
-num_col_points = 20
+num_col_points = 10
 # input_dim = 2
 
 # Initialise solver times

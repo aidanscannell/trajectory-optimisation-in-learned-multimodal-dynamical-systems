@@ -9,6 +9,7 @@ def plot_contourf(fig, ax, x, y, z, label=''):
                         y,
                         z.reshape(x.shape),
                         cmap=cm.coolwarm,
+                        levels=20,
                         linewidth=0,
                         antialiased=False)
     cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
@@ -22,7 +23,8 @@ def plot_tricontourf(fig, ax, x, y, z, label=''):
 
 
 def plot_mean_and_var(xx, yy, mu, var, llabel='mean', rlabel='variance'):
-    fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+    # fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+    fig, axs = plt.subplots(1, 2, figsize=(18, 4))
     # plt.subplots_adjust(wspace=0, hspace=0)
     plot_contourf(fig, axs[0], xx, yy, mu, label=llabel)
     plot_contourf(fig, axs[1], xx, yy, var, label=rlabel)

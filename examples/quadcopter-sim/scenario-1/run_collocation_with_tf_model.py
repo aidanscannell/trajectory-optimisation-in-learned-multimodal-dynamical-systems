@@ -1,12 +1,14 @@
+import pathlib
+import time
+
 import matplotlib.pyplot as plt
 from gpjax.kernels import RBF
 from jax import numpy as np
 from jax.config import config
 from mogpe.training.utils import load_model_from_config_and_checkpoint
-from ProbGeo.collocation import collocation
-# from ProbGeo.gp_old.kernels import DiffRBF
-from ProbGeo.metric_tensor import gp_metric_tensor
-from ProbGeo.visualisation.plot_trajectories import plot_svgp_and_start_end
+from tromp.collocation import collocation
+from tromp.metric_tensor import gp_metric_tensor
+from tromp.visualisation.plot_trajectories import plot_svgp_and_start_end
 
 config.update("jax_enable_x64", True)
 
@@ -34,19 +36,11 @@ def mogpe_checkpoint_to_numpy(config_file, ckpt_dir, data_file, expert_num=0):
     # kerenl parameters
     variance = gating_func.kernel.kernels[0].variance.numpy()
     lengthscales = gating_func.kernel.kernels[0].lengthscales.numpy()
-    # kernel = DiffRBF(
-    #     inducing_variable.shape[1],
-    #     variance=variance,
-    #     lengthscales=lengthscales,
-    #     ARD=True,
-    # )
     kernel = RBF(variance=variance, lengthscales=lengthscales)
     return kernel, inducing_variable, mean_function, q_mu, q_sqrt, whiten
 
 
 def create_save_dir():
-    import pathlib
-    import time
 
     dir_name = (
         "../reports/figures/"

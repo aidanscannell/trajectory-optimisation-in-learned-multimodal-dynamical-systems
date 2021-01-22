@@ -2,7 +2,7 @@ from jax import jacfwd, jit
 from jax import numpy as np
 from jax import partial, vmap
 
-from ProbGeo.metric_tensor import calc_vec_metric_tensor
+from tromp.metric_tensor import calc_vec_metric_tensor
 
 
 # @partial(jit, static_argnums=(2))

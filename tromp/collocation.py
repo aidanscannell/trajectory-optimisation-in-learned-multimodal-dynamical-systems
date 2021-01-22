@@ -4,7 +4,8 @@ import scipy
 from jax.config import config
 from scipy.optimize import Bounds, NonlinearConstraint
 
-from ProbGeo.ode import geodesic_ode
+from tromp.metric_tensor import gp_metric_tensor
+from tromp.ode import geodesic_ode
 
 config.update("jax_enable_x64", True)
 
@@ -45,8 +46,6 @@ def collocation_objective(
     # # calculate metric tensor and jacobian
     # metric_tensor, jac = metric_fn(pos_guesses, fun, fun_kwargs)
 
-    from ProbGeo.metric_tensor import gp_metric_tensor
-
     # fun_kwargs = metric_fn_kwargs['fun_kwargs']
     # metric_tensor = gp_metric_tensor()
     # metric_tensor, _, _ = metric_fn(pos_guesses, **metric_fn_kwargs)
@@ -80,7 +79,6 @@ def collocation_objective(
 def collocation(
     state_guesses, pos_init, pos_end_targ, metric_fn, metric_fn_kwargs, times
 ):
-
     def collocation_constraint_fn(state_guesses):
         # state_guesses = state_guesses[:-1]
         input_dim = 2

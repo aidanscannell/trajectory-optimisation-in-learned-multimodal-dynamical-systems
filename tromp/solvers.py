@@ -1,11 +1,10 @@
 import jax
 import jax.numpy as np
-# from ProbGeo.jax_ode import odeint
 from jax.experimental.ode import odeint
 from scipy.integrate import solve_ivp
 from scipy.optimize import root
 
-from ProbGeo.ode import geodesic_ode
+from tromp.ode import geodesic_ode
 
 
 def integrate_ode_fn(

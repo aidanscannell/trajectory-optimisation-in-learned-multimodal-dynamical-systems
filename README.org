@@ -1,18 +1,26 @@
-* Probabilistic Geodesic Trajectory Optimisation in Jax
+* TROMP: TRajectory Optimisation in Multimodal Probabilitic dyamics
+/Disclaimer: this is research code./
 
-This repo implements a trajectory optimisation method based on finding shortest paths (geodesics) on
-probabilistic manifolds governed by Gaussian processes (GP) or sparse variational GPs.
-The goal of the trajectory optimisation is to find a shortest path on the manifold whilst avoiding
-regions where one cannot be confident in the location of the manifold (low probability).
+This package (=tromp=) implements the trajectory optimisation for a two-stage method that performs trajectory 
+optimisation in multimodal dynamical systems with unknown nonlinear transition dynamics. 
+The method finds trajectories that remain in a preferred dynamics mode where possible and in regions
+of the transition dynamics model that have been observed so can be predicted confidently.
 
-Geodesics can be modelled as a second order ODE and we are interested in solving the boundary
-value problem to find a geodesic curve that passes through target start and end positions.
-The goal of the boundary value problem is to find the optimal initial velocity which results in
-the curve ending at the target position.
-We implement a shooting method.
+The first stage leverages a Mixture of Gaussian Process Experts
+method to learn a predictive dynamics model from historical data.
+See my [[https://github.com/aidanscannell/mogpe][mogpe]] package for an implementation in GPflow 2.1/TensorFlow 2.4+.
+Importantly, this model infers a Gaussian process posterior over a
+gating function that indicates the probability of being in a particular
+dynamics mode at each state. 
 
-It uses scipys =solve_ivp= to integrate the ODE so it can use Runge Kutta (RK45),
-a collocation method (Radau) etc.
-The shooting method optimises the initial velocity of the geodesic ODE and uses the error
-between the integrated end position with the target end position in scipys root
-finder =root= where the tolerance and the maximum number of function evaluations can be set.
+The trajectory optimisation in this package projects the optimisation onto this
+gating function (which parameterises a probabilistic manifold).
+Shortest paths (aka geodesics) on this manifold satisfy a continuous-time second-order ODE.
+This package implements three methods for solving the resulting trajectory optimisation problem 
+in this ODE:
+1. Shooting method (simplest)
+2. Multiple shooting method
+3. Collocation (recommended)
+
+The method works on probabilistic manifolds parameterised by Gaussian processes and sparse variational Gaussian 
+processes.

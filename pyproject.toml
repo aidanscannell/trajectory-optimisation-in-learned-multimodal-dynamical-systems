@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "ProbGeo"
+version = "0.1.0"
+description = "Trajectory optimisation in learned multimodal dynamical systems via latent-space collocation - JAX."
+authors = ["Aidan Scannell <scannell.aidan@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+numpy = "1.19.4"
+# jax = "^0.2.5"
+# jaxlib = "^0.1.56"
+jax = "0.2.5"
+jaxlib = "0.1.56"
+matplotlib = "^3.3.3"
+tensorflow-probability = "^0.12.0"
+tensorflow = "^2.2.0"
+scipy = "^1.4"
+# scipy = "1.5.4"
+# scipy = "1.4.1"
+# gpflow = "2.0.5"
+# gpflow = "2.0.5"
+gpflow = "^2.1.0"
+cloudpickle = "1.3.0"
+
+mogpe = {path = "../mogpe", develop=true} # my Mixtures of GP Experts library
+gpjax = {path = "../GPJax", develop=true} # my Jax GP library
+# gpjax = {git = "https://github.com/aidanscannell/GPJax", brach = "master"} # my Jax GP library
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.dephell.main]
+from = {format = "poetry", path = "pyproject.toml"}
+to = {format = "setuppy", path = "setup.py"}

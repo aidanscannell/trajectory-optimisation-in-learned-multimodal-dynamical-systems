@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "ProbGeo"
+name = "tromp"
 version = "0.1.0"
 description = "Trajectory optimisation in learned multimodal dynamical systems via latent-space collocation - JAX."
 authors = ["Aidan Scannell <scannell.aidan@gmail.com>"]
@@ -7,10 +7,10 @@ authors = ["Aidan Scannell <scannell.aidan@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 numpy = "1.19.4"
-# jax = "^0.2.5"
-# jaxlib = "^0.1.56"
-jax = "0.2.5"
-jaxlib = "0.1.56"
+jax = "^0.2.5"
+jaxlib = "^0.1.56"
+# jax = "0.2.5"
+# jaxlib = "0.1.56"
 matplotlib = "^3.3.3"
 tensorflow-probability = "^0.12.0"
 tensorflow = "^2.2.0"

@@ -4,9 +4,6 @@ import scipy
 from jax.config import config
 from scipy.optimize import Bounds, NonlinearConstraint
 
-from tromp.metric_tensor import gp_metric_tensor
-from tromp.ode import geodesic_ode
-
 config.update("jax_enable_x64", True)
 
 

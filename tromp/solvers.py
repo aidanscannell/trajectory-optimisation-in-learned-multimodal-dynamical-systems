@@ -1,250 +1,241 @@
+import abc
+
 import jax
-import jax.numpy as np
-from jax.experimental.ode import odeint
-from scipy.integrate import solve_ivp
-from scipy.optimize import root
+import jax.numpy as jnp
+import objax
+import scipy as sp
+from bunch import Bunch
+from jax.config import config
+from scipy.optimize import Bounds, NonlinearConstraint
 
-from tromp.ode import geodesic_ode
+from tromp.metric_tensors import RiemannianMetricTensor
+# from tromp.ode import geodesic_ode
+from tromp.ode import ODE, GeodesicODE
 
-
-def integrate_ode_fn(
-    ode_fn, state_init, times, t_init=0.0, t_end=1.0, int_method="RK45"
-):
-    integrator = solve_ivp(
-        fun=ode_fn,
-        t_span=(t_init, t_end),
-        y0=state_init,
-        t_eval=times,
-        # r_tol=1.,
-        # a_tol=1.,
-        method=int_method,
-    )
-    return integrator.t, integrator.y
+config.update("jax_enable_x64", True)
 
 
-def error_geodesic_vel(
-    vel_init,
-    pos_init,
-    pos_end_targ,
-    metric_fn,
-    metric_fn_args,
-    times,
-    t_init=0.0,
-    t_end=1.0,
-    int_method="RK45",
-):
-    def ode_fn(t, state):
-        return geodesic_ode(t, state, metric_fn, metric_fn_args)
+class BaseSolver(objax.Module, abc.ABC):
+    def __init__(self, ode: ODE):
+        self.ode = ode
+        # self.times = times
 
-    input_dim = pos_init.shape[0]
-    print("Shooting with initial velocity: ", vel_init)
-    state_init = np.concatenate([pos_init, vel_init])
+    @abc.abstractmethod
+    def objective_fn(self, state):
+        raise NotImplementedError
 
-    ts, states = integrate_ode_fn(
-        ode_fn,
-        state_init,
-        times,
-        t_init=t_init,
-        t_end=t_end,
-        int_method=int_method,
-    )
-    pos_end_integrated = np.array(states)[0:input_dim, -1]
-
-    error = pos_end_targ - pos_end_integrated
-    print("Target pos error: ", error)
-    return error
-
-
-def shooting_geodesic_solver(
-    pos_init,
-    pos_end_targ,
-    vel_init_guess,
-    metric_fn,
-    metric_fn_kwargs,
-    times,
-    t_init=0.0,
-    t_end=1.0,
-    int_method="RK45",
-    root_tol=0.05,
-    maxfev=1000,
-):
-    def ode_fn(t, state):
-        return geodesic_ode(t, state, metric_fn, metric_fn_kwargs)
-
-    error_geodesic_vel_args = (
+    @abc.abstractmethod
+    def solve_trajectory(
+        self,
+        state_guesses,
         pos_init,
         pos_end_targ,
-        metric_fn,
-        metric_fn_kwargs,
         times,
-        t_init,
-        t_end,
-        int_method,
-    )
-    root_method = "krylov"
-    root_method = "lm"
-    opt_result = root(
-        error_geodesic_vel,
-        vel_init_guess,
-        args=error_geodesic_vel_args,
-        # jac=loss_jac,
-        method=root_method,
-        options={"maxfev": maxfev, "disp": True},
-        tol=root_tol,
-    )
-    print("Root finding terminated...")
-    print(opt_result)
-    opt_vel_init = opt_result.x
-
-    state_init = np.concatenate([pos_init, opt_vel_init])
-    _, geodesic_traj = integrate_ode_fn(
-        ode_fn,
-        state_init,
-        times,
-        t_init=t_init,
-        t_end=t_end,
-        int_method=int_method,
-    )
-    return opt_vel_init, geodesic_traj
+    ):
+        raise NotImplementedError
 
 
-def integrate_guesses_scipy(ode_fn, state_guesses, times, int_method="RK45"):
-    t_init = times[0]
-    t_end = times[-1]
-    times = np.linspace(t_init, t_end, 1000)
-    integrator = solve_ivp(
-        fun=ode_fn,
-        t_span=(t_init, t_end),
-        y0=state_guesses,
-        t_eval=times,
-        method=int_method,
-    )
-    end_state_integrated = np.array(integrator.y)[:, -1]
-    return end_state_integrated
+def start_end_pos_bounds(state_guesses, pos_init, pos_end):
+    lb = -jnp.ones([*state_guesses.shape]) * jnp.inf
+    ub = jnp.ones([*state_guesses.shape]) * jnp.inf
+
+    for idx, pos in enumerate(pos_init):
+        if pos < 0:
+            lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 1.02)
+            ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 0.98)
+        else:
+            lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 0.98)
+            ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 1.02)
+
+    for idx, pos in enumerate(pos_end):
+        if pos < 0:
+            lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 1.02)
+            ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 0.98)
+        else:
+            lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 0.98)
+            ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 1.02)
+
+    bounds = Bounds(lb=lb.flatten(), ub=ub.flatten())
+    return bounds
 
 
-def integrate_multiple_guesses(state_guesses, times, ode_args):
-    def ode_fn_scipy(t, state):
-        # print('inside ode_fn')
-        return geodesic_ode(t, state, *ode_args)
+class GeodesicSolver(objax.Module, abc.ABC):
+    def __init__(self, ode: GeodesicODE):
+        self.ode = ode
+        # self.times = times
 
-    num_grid_points = state_guesses.shape[0]
-    states_integrated = np.empty(
-        [state_guesses.shape[0], state_guesses.shape[1]]
-    )
-    for i in range(num_grid_points - 1):
-        state_integrated = integrate_guesses_scipy(
-            ode_fn_scipy, state_guesses[i, :], times[i, :]
-        )
-        states_integrated = jax.ops.index_update(
-            states_integrated, jax.ops.index[i + 1, :], state_integrated
-        )
-        # print('grid point ', str(i))
-        # print(states_integrated)
-    return states_integrated
+    @abc.abstractmethod
+    def objective_fn(self, state):
+        raise NotImplementedError
 
-
-# @jax.partial(jax.jit, static_argnums=(1, 2, 3, 4, 5))
-def shooting_error(
-    state_guesses, pos_start, pos_end, metric_fn, metric_fn_kwargs, times
-):
-    def ode_fn(state, t):
-        print("inside ode_fn")
-        return geodesic_ode(t, state, metric_fn, metric_fn_kwargs)
-
-    def integrate_guesses(ode_fn, state_init, times):
-        states_integrated = odeint(ode_fn, state_init, times)
-        end_state_integrated = np.array(states_integrated)[-1, :]
-        return end_state_integrated
-
-    input_dim = pos_start.shape[0]
-    state_guesses = state_guesses.reshape([-1, 2 * input_dim])
-    state_guesses = jax.ops.index_update(
-        state_guesses, jax.ops.index[0, :input_dim], pos_start
-    )
-    state_guesses = jax.ops.index_update(
-        state_guesses, jax.ops.index[-1, :input_dim], pos_end
-    )
-    # print('state guesses after update')
-    # print(state_guesses)
-    ode_args = [metric_fn, metric_fn_kwargs]
-    states_integrated = integrate_multiple_guesses(
-        state_guesses, times, ode_args
-    )
-    # print('states integrated')
-    # print(states_integrated)
-    states_integrated = jax.ops.index_update(
-        states_integrated, jax.ops.index[0, :], state_guesses[0, :]
-    )
-    # print(states_integrated)
-    # states_integrated = integrate_guesses(ode_fn, state_guesses[0, :], times)
-    # states_integrated = jax.vmap(integrate_guesses,
-    #                              (None, 0, 0))(ode_fn, state_guesses, times)
-    # pos_guesses = state_guesses[:, 0:input_dim]
-    # pos_guesses = pos_guesses[1:, :]
-    # pos_integrated = states_integrated[:, 0:input_dim]
-
-    error = np.subtract(states_integrated, state_guesses)
-    # print('error')
-    # print(error.shape)
-    # error = jax.ops.index_update(error, jax.ops.index[-1, :],
-    #                              np.zeros([2 * input_dim]))
-    # error = jax.ops.index_update(error, jax.ops.index[-1, input_dim:],
-    #                              np.zeros([input_dim]))
-
-    print("Target pos error: ", error)
-    error = error.reshape([-1])
-    return error
-
-
-# @jax.partial(jax.jit, static_argnums=(0, 1, 2, 3))
-def multiple_shooting(state_guesses, metric_fn, metric_fn_kwargs, times):
-    input_dim = int(state_guesses.shape[-1] / 2)
-    # pos_guesses = state_guesses[1:-1, 0:input_dim]
-    # vel_guesses = state_guesses[:, input_dim:]
-    pos_start = state_guesses[0, 0:input_dim]
-    pos_end = state_guesses[-1, 0:input_dim]
-    shooting_error_args = (
-        pos_start,
-        pos_end,
-        metric_fn,
-        metric_fn_kwargs,
-        times,
-    )
-
-    # root_method = 'krylov'
-    root_method = "hybr"
-    maxfev = 1000
-    root_tol = 0.0005
-    print("inside multiple shooting")
-    print(state_guesses.shape)
-    state_guesses = state_guesses.flatten()
-    print(state_guesses)
-    print(state_guesses.shape)
-    opt_result = root(
-        shooting_error,
+    @abc.abstractmethod
+    def solve_trajectory(
+        self,
         state_guesses,
-        args=shooting_error_args,
-        method=root_method,
-        options={"maxfev": maxfev, "disp": True},
-        tol=root_tol,
-    )
-    print("Root finding terminated...")
-    print(opt_result)
-    # opt_vel_init = opt_result.x
-    state_opt = opt_result.x
-    print(state_opt.shape)
-    state_opt = state_opt.reshape([-1, 2 * input_dim])
+        pos_init,
+        pos_end_targ,
+        times,
+    ):
+        raise NotImplementedError
 
-    state_opt = jax.ops.index_update(
-        state_opt, jax.ops.index[-1, :input_dim], pos_end
-    )
-    print(state_opt.shape)
-    print(state_opt)
 
-    # ode_args = [metric_fn, metric_fn_kwargs]
-    # geodesic_traj = integrate_multiple_guesses(state_opt, times, ode_args)
-    # print('traj')
-    # print(geodesic_traj.shape)
-    return state_opt
-    # return state_opt, geodesic_traj
+class CollocationGeodesicSolver(BaseSolver):
+    def __init__(
+        self,
+        ode,
+        # num_col_points: int = 10,
+        covariance_weight: jnp.float64 = 1.0,
+        maxiter: int = 100,
+    ):
+        super().__init__(ode)
+        self.covariance_weight = covariance_weight
+        self.maxiter = maxiter
+
+    def collocation_constraint_fn(self, state_guesses):
+        times = self.times  # remove this
+        input_dim = 2
+        state_guesses = state_guesses.reshape([-1, 2 * input_dim])
+        num_timesteps = times.shape[0]
+        dt = times[-1] - times[0]
+        time_col = jnp.linspace(
+            times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
+        )
+
+        def ode_fn(state):
+            return self.ode.ode_fn(times, state)
+
+        state_prime = jax.vmap(ode_fn)(state_guesses)
+        # state_prime = ode_fn(state_guesses)
+        state_ll = state_guesses[0:-1, :]
+        state_rr = state_guesses[1:, :]
+        state_prime_ll = state_prime[0:-1, :]
+        state_prime_rr = state_prime[1:, :]
+        state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
+            state_prime_ll - state_prime_rr
+        )
+        state_prime_col = jax.vmap(ode_fn)(state_col)
+        # state_prime_col = ode_fn(state_col)
+
+        defect = (state_ll - state_rr) + dt / 6 * (
+            state_prime_ll + 4 * state_prime_col + state_prime_rr
+        )
+        print("defect")
+        print(defect)
+        return defect.flatten()
+
+    # @jax.partial(jax.jit, static_argnums=(1, 2, 3))
+    # @jax.partial(objax.Jit, static_argnums=(1, 2, 3))
+    def objective_fn(
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+    ):
+        input_dim = 2
+        state_guesses = state_guesses.reshape([-1, 2 * input_dim])
+        pos_guesses = state_guesses[:, 0:2]
+        pos_guesses = jax.ops.index_update(
+            pos_guesses, jax.ops.index[0, :], pos_init
+        )
+        pos_guesses = jax.ops.index_update(
+            pos_guesses, jax.ops.index[-1, :], pos_end_targ
+        )
+        norm = jnp.linalg.norm(pos_guesses, axis=-1, ord=-2)
+
+        metric_tensor = self.ode.metric_fn(pos_guesses)
+        # print("metric_tensor")
+        # print(metric_tensor.shape)
+        # metric_tensor, jac = metric_fn(pos_guesses, **metric_fn_kwargs)
+        trace_metric = jnp.trace(metric_tensor, axis1=-2, axis2=-1)
+        # print(trace_metric.shape)
+        trace_metric_sum = jnp.sum(trace_metric)
+
+        norm_sum = jnp.sum(norm)
+        print("Norm Loss: ", norm_sum)
+        print("Trace Metric Loss: ", trace_metric_sum)
+        # print("Time Loss: ", times[-1])
+        # metric_weight = 5.0
+        # metric_weight = 50.0
+        # return norm_sum
+        # return norm_sum + self.covariance_weight * trace_metric_sum
+        # return trace_metric_sum
+        return 1.0
+
+    def solve_trajectory(
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+        bounds: Bounds = None,
+    ):
+        if bounds is None:
+            bounds = start_end_pos_bounds(
+                state_guesses, pos_init, pos_end_targ
+            )
+
+        states_shape = state_guesses.shape
+        # state_dim = states_guesses.shape[1]
+        state_guesses = state_guesses.reshape(-1)
+        # state_guesses_var = objax.TrainVar(state_guesses)
+        state_guesses_var = objax.StateVar(state_guesses)
+
+        objective_args = (pos_init, pos_end_targ, times)
+        self.times = times  # TODO delete this!!
+
+        # defect_constraints = NonlinearConstraint(
+        #     self.collocation_constraint_fn, -0.1, 0.1
+        # )
+        constraint_fn_vars = {"state_guesses": state_guesses_var}
+        # constraint_fn_vars = state_guesses_var
+        constraint_fn_vars = objax.VarCollection(constraint_fn_vars)
+        jitted_constraint_fn = objax.Jit(
+            self.collocation_constraint_fn, constraint_fn_vars
+        )
+        defect_constraints = NonlinearConstraint(
+            # jitted_constraint_fn,
+            # -0.1,
+            # 0.1
+            jitted_constraint_fn,
+            -0.001,
+            0.001,
+        )
+
+        jitted_objective_fn = objax.Jit(self.objective_fn, constraint_fn_vars)
+
+        # defect_constraints = NonlinearConstraint(
+        #     self.collocation_constraint_fn, -0.01, 0.01
+        # )
+
+        constraints = defect_constraints
+        method = "SLSQP"
+
+        res = sp.optimize.minimize(
+            # self.objective_fn,
+            jitted_objective_fn,
+            # jnp.flatten(state_guesses),
+            state_guesses,
+            # params,
+            method=method,
+            bounds=bounds,
+            constraints=constraints,
+            options={"verbose": 1, "disp": True, "maxiter": self.maxiter},
+            args=objective_args,
+        )
+        print("res")
+        print(res)
+        print(res.x.shape)
+        state_opt = res.x
+        # state_opt = res.x[:-1]
+        # state_opt = state_opt.reshape([*state_guesses.shape])
+        state_opt = state_opt.reshape(states_shape)
+        return state_opt
+
+
+class HermiteSimpsonCollocationSolver(CollocationGeodesicSolver):
+    def __init__(self, ode, num_col_points: int = 10):
+        super().__init__(ode)
+
+    def collocation_constraints_fn():
+        return 0

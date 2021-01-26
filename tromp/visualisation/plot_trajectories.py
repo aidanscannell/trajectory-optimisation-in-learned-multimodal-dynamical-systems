@@ -3,7 +3,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 from gpjax.prediction import gp_jacobian, gp_predict
 from jax.config import config
-from tromp.metric_tensor import gp_metric_tensor
+# from tromp.metric_tensors import gp_metric_tensor
 from tromp.mogpe import single_mogpe_mixing_probability
 from tromp.visualisation.gp import plot_contourf, plot_mean_and_var
 from tromp.visualisation.utils import create_grid
@@ -46,9 +46,9 @@ color_opts = [color_opt_2, color_opt_1]
 def plot_metirc_trace_over_time(metric, solver, traj_init, traj_opt):
     metric_tensor_init, _, _ = gp_metric_tensor(
         traj_init[:, 0:2],
-        metric.gp.Z,
+        metric.gp.inducing_variable,
         metric.gp.kernel,
-        mean_func=metric.gp.mean_func,
+        mean_func=metric.gp.mean_function,
         f=metric.gp.q_mu,
         full_cov=True,
         q_sqrt=metric.gp.q_sqrt,
@@ -57,9 +57,9 @@ def plot_metirc_trace_over_time(metric, solver, traj_init, traj_opt):
     metric_trace_init = np.trace(metric_tensor_init, axis1=1, axis2=2)
     metric_tensor_opt, _, _ = gp_metric_tensor(
         traj_opt[:, 0:2],
-        metric.gp.Z,
+        metric.gp.inducing_variable,
         metric.gp.kernel,
-        mean_func=metric.gp.mean_func,
+        mean_func=metric.gp.mean_function,
         f=metric.gp.q_mu,
         full_cov=True,
         q_sqrt=metric.gp.q_sqrt,
@@ -88,9 +88,9 @@ def plot_mixing_prob_over_time(gp, solver, traj_init, traj_opts, labels):
         (0, None, None, None, None, None, None),
     )(
         traj_init[:, 0:2],
-        gp.Z,
+        gp.inducing_variable,
         gp.kernel,
-        gp.mean_func,
+        gp.mean_function,
         gp.q_mu,
         False,
         gp.q_sqrt,
@@ -116,9 +116,9 @@ def plot_mixing_prob_over_time(gp, solver, traj_init, traj_opts, labels):
             (0, None, None, None, None, None, None),
         )(
             traj_opt[:, 0:2],
-            gp.Z,
+            gp.inducing_variable,
             gp.kernel,
-            gp.mean_func,
+            gp.mean_function,
             gp.q_mu,
             False,
             gp.q_sqrt,
@@ -135,42 +135,18 @@ def plot_mixing_prob_over_time(gp, solver, traj_init, traj_opts, labels):
     ax.legend()
 
 
-def plot_start_and_end_pos(fig, ax, solver):
-    fan_x = 2.5
-    fan_y = -0.1
-    fan_delta_x = 0.5
-    fan_delta_y = 0.5
-    ax.annotate(
-        "Fan",
-        (fan_x - 0.2, fan_y + 0.1),
-        horizontalalignment="right",
-        verticalalignment="top",
-    )
-    ax.plot(
-        [fan_x, fan_x - fan_delta_x],
-        [fan_y, fan_y + fan_delta_y],
-        color="k",
-        linewidth=4,
-    )
-    ax.plot(
-        [fan_x, fan_x - fan_delta_x],
-        [fan_y, fan_y - fan_delta_y],
-        color="k",
-        linewidth=4,
-    )
-    ax.scatter(solver.pos_init[0], solver.pos_init[1], marker="x", color="k")
-    ax.scatter(
-        solver.pos_end_targ[0], solver.pos_end_targ[1], color="k", marker="x"
-    )
+def plot_start_and_end_pos(fig, ax, pos_init, pos_end_targ):
+    ax.scatter(pos_init[0], pos_init[1], marker="x", color="k")
+    ax.scatter(pos_end_targ[0], pos_end_targ[1], color="k", marker="x")
     ax.annotate(
         "Start $\mathbf{x}_0$",
-        (solver.pos_init[0], solver.pos_init[1]),
+        (pos_init[0], pos_init[1]),
         horizontalalignment="left",
         verticalalignment="top",
     )
     ax.annotate(
         "End $\mathbf{x}_f$",
-        (solver.pos_end_targ[0], solver.pos_end_targ[1]),
+        (pos_end_targ[0], pos_end_targ[1]),
         horizontalalignment="left",
         verticalalignment="top",
     )
@@ -190,9 +166,9 @@ def plot_svgp_and_all_trajs(gp, solver, traj_opts=None, labels=None):
     Xnew, xx, yy = create_grid(gp.X, N=961)
     mu, var = gp_predict(
         Xnew,
-        gp.Z,
+        gp.inducing_variable,
         kernels=gp.kernel,
-        mean_funcs=gp.mean_func,
+        mean_funcs=gp.mean_function,
         f=gp.q_mu,
         q_sqrt=gp.q_sqrt,
         full_cov=False,
@@ -244,7 +220,7 @@ def plot_svgp_and_all_trajs(gp, solver, traj_opts=None, labels=None):
     return fig, axs
 
 
-def plot_svgp_and_start_end(gp, solver, traj_opts=None, labels=["", ""]):
+def plot_svgp_and_start_end(gp, traj_init, traj_opts=None, labels=["", ""]):
     params = {
         "text.usetex": True,
         "text.latex.preamble": [
@@ -255,12 +231,12 @@ def plot_svgp_and_start_end(gp, solver, traj_opts=None, labels=["", ""]):
     plt.rcParams.update(params)
 
     # Xnew, xx, yy = create_grid(gp.X, N=961)
-    Xnew, xx, yy = create_grid(gp.Z, N=961)
+    Xnew, xx, yy = create_grid(gp.inducing_variable, N=961)
     mu, var = gp_predict(
         Xnew,
-        gp.Z,
+        gp.inducing_variable,
         kernels=gp.kernel,
-        mean_funcs=gp.mean_func,
+        mean_funcs=gp.mean_function,
         f=gp.q_mu,
         q_sqrt=gp.q_sqrt,
         full_cov=False,
@@ -282,14 +258,14 @@ def plot_svgp_and_start_end(gp, solver, traj_opts=None, labels=["", ""]):
     )
 
     for ax in axs:
-        fig, ax = plot_start_and_end_pos(fig, ax, solver)
+        fig, ax = plot_start_and_end_pos(
+            fig, ax, pos_init=traj_init[0, :], pos_end_targ=traj_init[-1, :]
+        )
         # plot_omitted_data(fig, ax, color="k")
         ax.set_xlabel("$x$")
         ax.set_ylabel("$y$")
         # ax.scatter(gp.X[:, 0], gp.X[:, 1])
-        plot_traj(
-            fig, ax, solver.state_guesses, color=color_init, label="Init traj"
-        )
+        plot_traj(fig, ax, traj_init, color=color_init, label="Init traj")
         if traj_opts is not None:
             if isinstance(traj_opts, list):
                 for traj, label, color_opt in zip(
@@ -315,9 +291,9 @@ def plot_svgp_jacobian_mean(gp, solver, traj_opt=None):
     Xnew, xx, yy = create_grid(gp.X, N=961)
     mu, var = gp_predict(
         Xnew,
-        gp.Z,
+        gp.inducing_variable,
         kernels=gp.kernel,
-        mean_funcs=gp.mean_func,
+        mean_funcs=gp.mean_function,
         f=gp.q_mu,
         q_sqrt=gp.q_sqrt,
         full_cov=False,
@@ -328,9 +304,9 @@ def plot_svgp_jacobian_mean(gp, solver, traj_opt=None):
             x = x.reshape(1, -1)
         return gp_jacobian(
             x,
-            gp.Z,
+            gp.inducing_variable,
             gp.kernel,
-            gp.mean_func,
+            gp.mean_function,
             f=gp.q_mu,
             q_sqrt=gp.q_sqrt,
             full_cov=False,
@@ -387,9 +363,9 @@ def plot_svgp_jacobian_var(gp, solver, traj_opt=None):
             x = x.reshape(1, -1)
         return gp_jacobian(
             x,
-            gp.Z,
+            gp.inducing_variable,
             gp.kernel,
-            gp.mean_func,
+            gp.mean_function,
             f=gp.q_mu,
             q_sqrt=gp.q_sqrt,
             full_cov=False,
@@ -435,9 +411,9 @@ def plot_svgp_metric_and_start_end(metric, solver, traj_opt=None):
     Xnew, xx, yy = create_grid(metric.gp.X, N=961)
     metric_tensor, mu_j, cov_j = gp_metric_tensor(
         Xnew,
-        metric.gp.Z,
+        metric.gp.inducing_variable,
         metric.gp.kernel,
-        mean_func=metric.gp.mean_func,
+        mean_func=metric.gp.mean_function,
         f=metric.gp.q_mu,
         full_cov=True,
         q_sqrt=metric.gp.q_sqrt,
@@ -477,9 +453,9 @@ def plot_epistemic_var_vs_time(
 
     _, var_init = gp_predict(
         traj_init[:, 0:2],
-        gp.Z,
+        gp.inducing_variable,
         kernels=gp.kernel,
-        mean_funcs=gp.mean_func,
+        mean_funcs=gp.mean_function,
         f=gp.q_mu,
         q_sqrt=gp.q_sqrt,
         full_cov=False,
@@ -497,9 +473,9 @@ def plot_epistemic_var_vs_time(
     for traj_opt, label, color in zip(traj_opts, labels, color_opts):
         _, var_opt = gp_predict(
             traj_opt[:, 0:2],
-            gp.Z,
+            gp.inducing_variable,
             kernels=gp.kernel,
-            mean_funcs=gp.mean_func,
+            mean_funcs=gp.mean_function,
             f=gp.q_mu,
             q_sqrt=gp.q_sqrt,
             full_cov=False,
@@ -530,9 +506,9 @@ def plot_aleatoric_var_vs_time(
         (0, None, None, None, None, None, None),
     )(
         traj_init[:, 0:2],
-        gp.Z,
+        gp.inducing_variable,
         gp.kernel,
-        gp.mean_func,
+        gp.mean_function,
         gp.q_mu,
         False,
         gp.q_sqrt,
@@ -560,9 +536,9 @@ def plot_aleatoric_var_vs_time(
             (0, None, None, None, None, None, None),
         )(
             traj_opt[:, 0:2],
-            gp.Z,
+            gp.inducing_variable,
             gp.kernel,
-            gp.mean_func,
+            gp.mean_function,
             gp.q_mu,
             False,
             gp.q_sqrt,
@@ -603,7 +579,15 @@ def plot_mixing_prob_all_trajs(gp, solver, traj_opts=None, labels=None):
     mixing_probs = jax.vmap(
         single_mogpe_mixing_probability,
         (0, None, None, None, None, None, None),
-    )(Xnew, gp.Z, gp.kernel, gp.mean_func, gp.q_mu, False, gp.q_sqrt)
+    )(
+        Xnew,
+        gp.inducing_variable,
+        gp.kernel,
+        gp.mean_function,
+        gp.q_mu,
+        False,
+        gp.q_sqrt,
+    )
     fig, ax = plt.subplots(1, 1)
     plot_contourf(
         fig,
@@ -650,7 +634,15 @@ def plot_mixing_prob_and_start_end(gp, solver, traj_opts=None, labels=None):
     mixing_probs = jax.vmap(
         single_mogpe_mixing_probability,
         (0, None, None, None, None, None, None),
-    )(Xnew, gp.Z, gp.kernel, gp.mean_func, gp.q_mu, False, gp.q_sqrt)
+    )(
+        Xnew,
+        gp.inducing_variable,
+        gp.kernel,
+        gp.mean_function,
+        gp.q_mu,
+        False,
+        gp.q_sqrt,
+    )
     # print('mixing probs yo')
     # print(mixing_probs.shape)
     # mixing_probs = mixing_probs[:, 0, :] * mixing_probs[:, 1, :]
@@ -722,9 +714,9 @@ def plot_svgp_metric_trace_and_start_end(
     ):
         metric_tensor_init, _, _ = gp_metric_tensor(
             solver.state_guesses[:, 0:2],
-            metric.gp.Z,
+            metric.gp.inducing_variable,
             metric.gp.kernel,
-            mean_func=metric.gp.mean_func,
+            mean_func=metric.gp.mean_function,
             f=metric.gp.q_mu,
             full_cov=True,
             q_sqrt=metric.gp.q_sqrt,
@@ -734,9 +726,9 @@ def plot_svgp_metric_trace_and_start_end(
 
         metric_tensor_opt, _, _ = gp_metric_tensor(
             traj_opt[:, 0:2],
-            metric.gp.Z,
+            metric.gp.inducing_variable,
             metric.gp.kernel,
-            mean_func=metric.gp.mean_func,
+            mean_func=metric.gp.mean_function,
             f=metric.gp.q_mu,
             full_cov=True,
             q_sqrt=metric.gp.q_sqrt,

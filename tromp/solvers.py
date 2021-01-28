@@ -231,30 +231,31 @@ class CollocationGeodesicSolver(BaseSolver):
         jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
 
         res = sp.optimize.minimize(
+            # self.objective_fn,
             jitted_objective_fn,
             # jitted_dummy_objective_fn,
             # self.dummy_objective_fn,
             state_guesses,
+            # params,
             method=method,
             bounds=bounds,
-            constraints=jitted_collocation_constraints,
-            # constraints=collocation_constraints,
-            options={"disp": True, "maxiter": self.maxiter},
+            constraints=constraints,
+            options={"verbose": 1, "disp": True, "maxiter": self.maxiter},
             args=objective_args,
         )
-        print("Optimisation Result")
+        print("res")
         print(res)
-        # print(res.x.shape)
+        print(res.x.shape)
         state_opt = res.x
+        # state_opt = res.x[:-1]
+        # state_opt = state_opt.reshape([*state_guesses.shape])
         state_opt = state_opt.reshape(states_shape)
-        print("Optimised state trajectory")
-        print(state_opt)
         return state_opt
 
 
-# class HermiteSimpsonCollocationSolver(CollocationGeodesicSolver):
-#     def __init__(self, ode, num_col_points: int = 10):
-#         super().__init__(ode)
+class HermiteSimpsonCollocationSolver(CollocationGeodesicSolver):
+    def __init__(self, ode, num_col_points: int = 10):
+        super().__init__(ode)
 
-#     def collocation_constraints_fn():
-#         return 0
+    def collocation_constraints_fn():
+        return 0

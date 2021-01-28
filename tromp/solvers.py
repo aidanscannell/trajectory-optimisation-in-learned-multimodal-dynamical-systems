@@ -122,6 +122,14 @@ class CollocationGeodesicSolver(BaseSolver):
         print("defect")
         print(defect)
         return defect.flatten()
+    def dummy_objective_fn(
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+    ):
+        return 1.0
 
     # @jax.partial(jax.jit, static_argnums=(1, 2, 3))
     # @jax.partial(objax.Jit, static_argnums=(1, 2, 3))
@@ -201,20 +209,23 @@ class CollocationGeodesicSolver(BaseSolver):
             -0.001,
             0.001,
         )
-
-        jitted_objective_fn = objax.Jit(self.objective_fn, constraint_fn_vars)
-
         # defect_constraints = NonlinearConstraint(
+        #     self.collocation_constraint_fn, -0.1, 0.1
         #     self.collocation_constraint_fn, -0.01, 0.01
+        #     self.collocation_constraint_fn, -0.001, 0.001
         # )
 
-        constraints = defect_constraints
-        method = "SLSQP"
+        # Initialise objective function
+        objective_args = (pos_init, pos_end_targ, times)
+        # jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
+        jitted_dummy_objective_fn = objax.Jit(self.dummy_objective_fn, jitted_fn_vars)
+        jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
 
         res = sp.optimize.minimize(
             # self.objective_fn,
             jitted_objective_fn,
-            # jnp.flatten(state_guesses),
+            # jitted_dummy_objective_fn,
+            # self.dummy_objective_fn,
             state_guesses,
             # params,
             method=method,

@@ -249,6 +249,7 @@ class SVGPMetricTensor(RiemannianMetricTensor):
         #     input_dim,
         # )
 
+        # jax.experimental.host_callback.id_print(expected_jac_outer_prod)
         # expected_metric_tensor = expected_jac_outer_prod + cov_weight * output_dim * cov_j
         expected_metric_tensor = (
             expected_jac_outer_prod + self.covariance_weight * jac_cov

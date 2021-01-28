@@ -1,72 +1,94 @@
-import pathlib
 import time
 
 import matplotlib.pyplot as plt
-from gpjax.kernels import RBF
+# import objax
 from jax import numpy as np
 from jax.config import config
-from mogpe.training.utils import load_model_from_config_and_checkpoint
-from tromp.collocation import collocation
-from tromp.metric_tensor import gp_metric_tensor
-from tromp.visualisation.plot_trajectories import plot_svgp_and_start_end
 
 config.update("jax_enable_x64", True)
+# from tromp.collocation import collocation
+from tromp.helpers import (init_straight_trajectory,
+                           init_svgp_gpjax_from_mogpe_ckpt)
+from tromp.metric_tensors import SVGPMetricTensor
+from tromp.ode import GeodesicODE
+from tromp.solvers import CollocationGeodesicSolver
+from tromp.visualisation.plot_trajectories import plot_svgp_and_start_end
+
+#########################
+# Configure solver params
+#########################
+maxiter = 500  # max number of iterations
+num_col_points = 10  # number of collocation points to use in solver
+lb_defect = -0.05
+ub_defect = 0.05
+lb_defect = -0.01  # works with cov=40 jitter=1e-4
+ub_defect = 0.01
+# lb_defect = -0.006
+# ub_defect = 0.006
+# lb_defect = -0.1
+# ub_defect = 0.1
+# lb_defect = -0.06
+# ub_defect = 0.06
+# lb_defect = -0.08
+# ub_defect = 0.08
+# lb_defect = -0.04  # works with cov=10 jitter=1e-4
+# ub_defect = 0.04
+
+# num_col_points = 10  # number of collocation points to use in solver
+# lb_defect = -0.05  # works with cov=3.0 jitter=1e-4
+# ub_defect = 0.05
+# covariance_weight = 1.0
+# jitter = 1e-4
+
+# num_col_points = 12  # number of collocation points to use in solver
+# lb_defect = -0.4  # works with cov=3.0 jitter=1e-4
+# ub_defect = 0.4
+# covariance_weight = 0.0
+# jitter = 1e-4
+
+# lb_defect = -0.000001
+# ub_defect = 0.000001
+
+# Initialise solver times
+t_init = -1.0  # start time
+t_end = 1.0  # end time
+times = np.linspace(t_init, t_end, num_col_points)
+
+# Initial guess of state vector at collocation points (guess straight line traj)
+pos_init = np.array([2.7, 2.0])  # desired start state
+pos_end_targ = np.array([-2.6, -1.5])  # desired end state
+vel_init_guess = np.array([0.0000005, 0.0000003])  # initial guess of velocity
+# vel_init_guess = np.array([0.0005, 0.0003])  # initial guess of velocity
+state_guesses = init_straight_trajectory(
+    pos_init, pos_end_targ, vel_init_guess, num_col_points=num_col_points
+)
 
 
-def mogpe_checkpoint_to_numpy(config_file, ckpt_dir, data_file, expert_num=0):
-    # load data set
-    data = np.load(data_file)
-    X = data["x"]
+################################
+# Configure metric tensor params
+################################
+# covariance_weight = 10.0
+# covariance_weight = 100.0
+# covariance_weight = 50.0
+covariance_weight = 40.0
+# covariance_weight = 20.0
+# covariance_weight = 10.0
+# covariance_weight = 30.0
+# covariance_weight = 3.0
+# covariance_weight = 7.0
+# covariance_weight = 0.0
+jitter = 1e-4
+# jitter = 1e-6
+# jitter = 1e-3
+# jitter = 1e-2
+# covariance_weight = 1.0
+# # jitter = 1e-6
+# jitter = 1e-8
 
-    # configure mogpe model from checkpoint
-    model = load_model_from_config_and_checkpoint(config_file, ckpt_dir, X=X)
-
-    # select the gating function to use
-    gating_func = model.gating_network.gating_function_list[expert_num]
-    mean_function = 0.0  # mogpe gating functions have zero mean function
-    whiten = gating_func.whiten
-
-    # sparse GP parameters
-    q_mu = gating_func.q_mu.numpy()
-    q_sqrt = gating_func.q_sqrt.numpy()
-    inducing_variable = (
-        gating_func.inducing_variable.inducing_variable.Z.numpy()
-    )
-
-    # kerenl parameters
-    variance = gating_func.kernel.kernels[0].variance.numpy()
-    lengthscales = gating_func.kernel.kernels[0].lengthscales.numpy()
-    kernel = RBF(variance=variance, lengthscales=lengthscales)
-    return kernel, inducing_variable, mean_function, q_mu, q_sqrt, whiten
-
-
-def create_save_dir():
-
-    dir_name = (
-        "../reports/figures/"
-        + time.strftime("%d-%m-%Y")
-        + "/"
-        + time.strftime("%H%M%S")
-        + "/"
-    )
-    pathlib.Path(dir_name).mkdir(parents=True, exist_ok=True)
-    return dir_name
-
-
-def init_straight_trajectory(pos_init, pos_end_targ, vel_init_guess=None):
-    pos1_guesses = np.linspace(pos_init[0], pos_end_targ[0], num_col_points)
-    pos2_guesses = np.linspace(pos_init[1], pos_end_targ[1], num_col_points)
-    pos_guesses = np.stack([pos1_guesses, pos2_guesses], -1)
-    input_dim = pos_init.shape[0]
-    # Initial guess of velocity at each collocation point
-    if vel_init_guess is None:
-        # TODO dynamically calculate vel_init_guess
-        vel_init_guess = np.array([0.0000005, 0.0000003])
-    vel_guesses = np.broadcast_to(vel_init_guess, (num_col_points, input_dim))
-    state_guesses = np.concatenate([pos_guesses, vel_guesses], -1)
-    return state_guesses
-
-
+######################################################
+# Load a SVGP gating function from an mogpe checkpoint
+######################################################
+expert_num = 1
 mogpe_dir = "../../../../mogpe/"
 ckpt_dir = (
     mogpe_dir
@@ -80,104 +102,41 @@ data_file = (
     mogpe_dir
     + "examples/quadcopter-sim/scenario-1/data/quad_sim_const_action_scenario_1.npz"
 )
-
-
-class SVGP:
-    (
-        kernel,
-        inducing_variable,
-        mean_function,
-        q_mu,
-        q_sqrt,
-        whiten,
-    ) = mogpe_checkpoint_to_numpy(config_file, ckpt_dir, data_file)
-    Z = inducing_variable
-    mean_func = mean_function
-
-
-# How may collocation points to use in solver
-num_col_points = 10
-# input_dim = 2
-
-# Initialise solver times
-t_init = -1.0
-# t_init = 0.
-t_end = 1.0
-times = np.linspace(t_init, t_end, num_col_points)
-
-# Specify the desired start and end states
-pos_init = np.array([2.7, 1.2])
-pos_end_targ = np.array([-2.7, -0.5])
-pos_init = np.array([2.7, 2.0])
-pos_end_targ = np.array([-2.6, -1.5])
-
-# Initial guess of state vector at collocation points
-# Guess a straight line trajectory
-vel_init_guess = np.array([0.0000005, 0.0000003])
-state_guesses = init_straight_trajectory(
-    pos_init, pos_end_targ, vel_init_guess
+svgp = init_svgp_gpjax_from_mogpe_ckpt(
+    config_file, ckpt_dir, data_file, expert_num=expert_num
 )
 
 
-class CollocationSolverParams:
-    times = times
-    pos_init = pos_init
-    pos_end_targ = pos_end_targ
-    state_guesses = state_guesses
+metric_tensor = SVGPMetricTensor(
+    gp=svgp, covariance_weight=covariance_weight, jitter=jitter
+)
+ode = GeodesicODE(metric_tensor=metric_tensor)
+
+collocation_solver = CollocationGeodesicSolver(
+    ode=ode,
+    covariance_weight=covariance_weight,
+    maxiter=maxiter,
+)
 
 
-class SVGPMetric:
-    gp = SVGP()
-    # cov_weight = 0.5
-    cov_weight = 10.0
-    full_cov = True
-    jitter = 1e-4
-    metric_fn_kwargs = {
-        "X": gp.inducing_variable,
-        "kernel": gp.kernel,
-        "mean_func": gp.mean_function,
-        "f": gp.q_mu,
-        "full_cov": full_cov,
-        "q_sqrt": gp.q_sqrt,
-        "cov_weight": cov_weight,
-        "jitter": jitter,
-        "white": gp.whiten,
-    }
-    # metric_fn_kwargs = {
-    #     "X": gp.Z,
-    #     "kernel": gp.kernel,
-    #     "mean_func": gp.mean_func,
-    #     "f": gp.q_mu,
-    #     "full_cov": full_cov,
-    #     "q_sqrt": gp.q_sqrt,
-    #     "cov_weight": cov_weight,
-    #     "jitter": jitter,
-    #     "white": white,
-    # }
+# plot_svgp_and_start_end(svgp, traj_init=state_guesses)
+# plt.show()
 
-
-gp = SVGP()
-metric = SVGPMetric()
-solver = CollocationSolverParams()
-plot_svgp_and_start_end(gp, solver, traj_opts=None, labels=None)
-
-plt.show()
-
-geodesic_traj = collocation(
+t = time.time()
+geodesic_traj = collocation_solver.solve_trajectory(
     state_guesses=state_guesses,
     pos_init=pos_init,
     pos_end_targ=pos_end_targ,
-    metric_fn=gp_metric_tensor,
-    metric_fn_kwargs=metric.metric_fn_kwargs,
     times=times,
+    lb_defect=lb_defect,
+    ub_defect=ub_defect,
 )
+duration = time.time() - t
+print("Optimisation duration: ", duration)
 
-plot_svgp_and_start_end(gp, solver, traj_opts=geodesic_traj)
+save_img_dir = "./images"
+plot_svgp_and_start_end(svgp, traj_init=state_guesses, traj_opts=geodesic_traj)
+plt.savefig(
+    save_img_dir + "/init-and-opt-trajs-on-svgp-new.pdf", transparent=True
+)
 plt.show()
-
-# # geodesic_traj = collocation_root(solver.state_guesses, solver.pos_init,
-# #                                  solver.pos_end_targ, metric_fn,
-# #                                  metric.metric_fn_kwargs, solver.times)
-# # geodesic_traj = collocation_(solver.pos_init, solver.pos_end_targ,
-# #                              metric_fn, metric.metric_fn_kwargs,
-# #                              solver.times)

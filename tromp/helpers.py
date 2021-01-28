@@ -2,6 +2,7 @@ import pathlib
 import time
 
 import jax.numpy as jnp
+import numpy as np
 from gpjax.kernels import RBF
 from gpjax.models import SVGP
 
@@ -108,14 +109,20 @@ def create_save_dir():
 def init_straight_trajectory(
     pos_init, pos_end_targ, vel_init_guess=None, num_col_points=10
 ):
+    pos_dim = pos_init.shape[0]
     pos1_guesses = jnp.linspace(pos_init[0], pos_end_targ[0], num_col_points)
     pos2_guesses = jnp.linspace(pos_init[1], pos_end_targ[1], num_col_points)
     pos_guesses = jnp.stack([pos1_guesses, pos2_guesses], -1)
-    input_dim = pos_init.shape[0]
+
+    # pos_guesses = np.random.uniform(
+    #     pos_init,
+    #     pos_end_targ,
+    #     (num_col_points, pos_dim),
+    # )
     # Initial guess of velocity at each collocation point
     if vel_init_guess is None:
         # TODO dynamically calculate vel_init_guess
         vel_init_guess = jnp.array([0.0000005, 0.0000003])
-    vel_guesses = jnp.broadcast_to(vel_init_guess, (num_col_points, input_dim))
+    vel_guesses = jnp.broadcast_to(vel_init_guess, (num_col_points, pos_dim))
     state_guesses = jnp.concatenate([pos_guesses, vel_guesses], -1)
     return state_guesses

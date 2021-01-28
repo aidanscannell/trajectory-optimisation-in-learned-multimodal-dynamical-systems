@@ -91,7 +91,7 @@ class CollocationGeodesicSolver(BaseSolver):
         self.covariance_weight = covariance_weight
         self.maxiter = maxiter
 
-    def collocation_constraint_fn(self, state_guesses):
+    def collocation_defects(self, state_guesses):
         times = self.times  # remove this
         input_dim = 2
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
@@ -122,6 +122,8 @@ class CollocationGeodesicSolver(BaseSolver):
         print("defect")
         print(defect)
         return defect.flatten()
+        # return defect.flatten() /1000
+
     def dummy_objective_fn(
         self,
         state_guesses,
@@ -131,8 +133,6 @@ class CollocationGeodesicSolver(BaseSolver):
     ):
         return 1.0
 
-    # @jax.partial(jax.jit, static_argnums=(1, 2, 3))
-    # @jax.partial(objax.Jit, static_argnums=(1, 2, 3))
     def objective_fn(
         self,
         state_guesses,
@@ -140,35 +140,46 @@ class CollocationGeodesicSolver(BaseSolver):
         pos_end_targ,
         times,
     ):
-        input_dim = 2
+        print("inside objective")
+        print(state_guesses.shape)
+        if len(pos_init.shape) == 1:
+            input_dim = pos_init.shape[0]
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
-        pos_guesses = state_guesses[:, 0:2]
+        pos_guesses = state_guesses[:, 0:input_dim]
+
+        # Update the start/end positions back to their target values
         pos_guesses = jax.ops.index_update(
             pos_guesses, jax.ops.index[0, :], pos_init
         )
         pos_guesses = jax.ops.index_update(
             pos_guesses, jax.ops.index[-1, :], pos_end_targ
         )
-        norm = jnp.linalg.norm(pos_guesses, axis=-1, ord=-2)
 
-        metric_tensor = self.ode.metric_fn(pos_guesses)
-        # print("metric_tensor")
-        # print(metric_tensor.shape)
-        # metric_tensor, jac = metric_fn(pos_guesses, **metric_fn_kwargs)
-        trace_metric = jnp.trace(metric_tensor, axis1=-2, axis2=-1)
-        # print(trace_metric.shape)
-        trace_metric_sum = jnp.sum(trace_metric)
-
+        # Calculate Euclidean distance
+        # norm = jnp.linalg.norm(pos_guesses, axis=-1, ord=-2)
+        norm = jnp.linalg.norm(pos_guesses, axis=-1)
+        # norm = jnp.linalg.norm(pos_guesses[:, 0] - pos_guesses[:, 1])
+        print('norm')
+        print(norm.shape)
         norm_sum = jnp.sum(norm)
+        print(norm_sum.shape)
         print("Norm Loss: ", norm_sum)
+        # dist = sp.spatial.distance.cdist(pos_guesses[:,0],pos_guesses[:,1], metric="euclidean")
+        # print('dist')
+        # print(dist.shape)
+        # print("Dist Loss: ", dist)
+
+        # Calculate sum of metric trace along trajectory
+        metric_tensor = self.ode.metric_fn(pos_guesses)
+        trace_metric = jnp.trace(metric_tensor, axis1=-2, axis2=-1)
+        trace_metric_sum = jnp.sum(trace_metric)
         print("Trace Metric Loss: ", trace_metric_sum)
+
         # print("Time Loss: ", times[-1])
-        # metric_weight = 5.0
-        # metric_weight = 50.0
-        # return norm_sum
         # return norm_sum + self.covariance_weight * trace_metric_sum
-        # return trace_metric_sum
-        return 1.0
+        sum_of_squares = jnp.sum(state_guesses**2)
+        # return norm_sum
+        return sum_of_squares
 
     def solve_trajectory(
         self,
@@ -176,38 +187,36 @@ class CollocationGeodesicSolver(BaseSolver):
         pos_init,
         pos_end_targ,
         times,
+        lb_defect=-0.05,
+        ub_defect=0.05,
         bounds: Bounds = None,
     ):
+        method = "SLSQP"
+        # hack as times needed in collocation_constraints_fn
+        self.times = times  # TODO delete this!!
         if bounds is None:
             bounds = start_end_pos_bounds(
                 state_guesses, pos_init, pos_end_targ
             )
 
         states_shape = state_guesses.shape
-        # state_dim = states_guesses.shape[1]
         state_guesses = state_guesses.reshape(-1)
-        # state_guesses_var = objax.TrainVar(state_guesses)
         state_guesses_var = objax.StateVar(state_guesses)
 
-        objective_args = (pos_init, pos_end_targ, times)
-        self.times = times  # TODO delete this!!
-
-        # defect_constraints = NonlinearConstraint(
-        #     self.collocation_constraint_fn, -0.1, 0.1
-        # )
-        constraint_fn_vars = {"state_guesses": state_guesses_var}
-        # constraint_fn_vars = state_guesses_var
-        constraint_fn_vars = objax.VarCollection(constraint_fn_vars)
-        jitted_constraint_fn = objax.Jit(
-            self.collocation_constraint_fn, constraint_fn_vars
+        # Initialise collocation defects as constraints
+        jitted_fn_vars = objax.VarCollection({"state_guesses": state_guesses_var})
+        jitted_collocation_defects= objax.Jit(
+            self.collocation_defects, jitted_fn_vars
         )
-        defect_constraints = NonlinearConstraint(
-            # jitted_constraint_fn,
-            # -0.1,
-            # 0.1
-            jitted_constraint_fn,
-            -0.001,
-            0.001,
+        jitted_collocation_constraints = NonlinearConstraint(
+            jitted_collocation_defects,
+            lb_defect,
+            ub_defect,
+        )
+        collocation_constraints = NonlinearConstraint(
+            self.collocation_defects,
+            lb_defect,
+            ub_defect,
         )
         # defect_constraints = NonlinearConstraint(
         #     self.collocation_constraint_fn, -0.1, 0.1
@@ -222,31 +231,30 @@ class CollocationGeodesicSolver(BaseSolver):
         jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
 
         res = sp.optimize.minimize(
-            # self.objective_fn,
             jitted_objective_fn,
             # jitted_dummy_objective_fn,
             # self.dummy_objective_fn,
             state_guesses,
-            # params,
             method=method,
             bounds=bounds,
-            constraints=constraints,
-            options={"verbose": 1, "disp": True, "maxiter": self.maxiter},
+            constraints=jitted_collocation_constraints,
+            # constraints=collocation_constraints,
+            options={"disp": True, "maxiter": self.maxiter},
             args=objective_args,
         )
-        print("res")
+        print("Optimisation Result")
         print(res)
-        print(res.x.shape)
+        # print(res.x.shape)
         state_opt = res.x
-        # state_opt = res.x[:-1]
-        # state_opt = state_opt.reshape([*state_guesses.shape])
         state_opt = state_opt.reshape(states_shape)
+        print("Optimised state trajectory")
+        print(state_opt)
         return state_opt
 
 
-class HermiteSimpsonCollocationSolver(CollocationGeodesicSolver):
-    def __init__(self, ode, num_col_points: int = 10):
-        super().__init__(ode)
+# class HermiteSimpsonCollocationSolver(CollocationGeodesicSolver):
+#     def __init__(self, ode, num_col_points: int = 10):
+#         super().__init__(ode)
 
-    def collocation_constraints_fn():
-        return 0
+#     def collocation_constraints_fn():
+#         return 0

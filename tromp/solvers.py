@@ -348,9 +348,19 @@ class CollocationGeodesicSolver(BaseSolver):
         method = "SLSQP"
         # hack as times needed in collocation_constraints_fn
         self.times = times  # TODO delete this!!
+
+        # bound the start and end (x,y) positions in the state vector
         if bounds is None:
-            bounds = start_end_pos_bounds(
-                state_guesses, pos_init, pos_end_targ
+            # bounds = start_end_pos_bounds(
+            #     state_guesses, pos_init, pos_end_targ
+            # )
+            bounds = start_end_pos_bounds_lagrange(
+                state_guesses,
+                pos_init,
+                pos_end_targ,
+                pos_init_idx=0,
+                pos_end_idx=-1,
+                tol=0.02,
             )
 
         states_shape = state_guesses.shape

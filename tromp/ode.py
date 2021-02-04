@@ -3,6 +3,7 @@ import abc
 # from jax import jacfwd, jit, partial, vmap
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsp
 import objax
 from gpjax.utilities import leading_transpose
 
@@ -72,8 +73,38 @@ class GeodesicODE(ODE):
         print(grad_vec_metric_tensor_wrt_posT.shape)
 
         metric_tensor = self.metric_tensor(pos, full_cov)
+
         # TODO implement cholesky if metric_tensor is PSD
-        metric_tensor = metric_tensor + jnp.eye(input_dim) * jitter
+        # chol_lower = jsp.linalg.cholesky(metric_tensor, lower=True)
+        # print("chol lower")
+        # print(chol_lower)
+        # inv_metric_tensor_grad_vec = jsp.linalg.solve_triangular(
+        #     chol_lower.T,
+        #     jsp.linalg.solve_triangular(
+        #         chol_lower, grad_vec_metric_tensor_wrt_posT, lower=True
+        #     ),
+        # )
+        # metric_tensor = metric_tensor + jnp.eye(input_dim) * self.jitter
+        # metric_tensor = -metric_tensor + jnp.eye(input_dim) * 1e-4
+        # metric_tensor = -metric_tensor
+        # print("metric tensor")
+        # print(metric_tensor)
+        # c, low = jsp.linalg.cho_factor(metric_tensor, check_finite=True)
+        # print("c")
+        # print(c)
+        # print(low)
+        # inv_metric_tensor_grad_vec = jsp.linalg.cho_solve(
+        #     (c, low), grad_vec_metric_tensor_wrt_posT
+        # )
+        # # # inv_metric_tensor_grad_vec = jsp.linalg.solve_triangular(
+        # # #     chol_lower, grad_vec_metric_tensor_wrt_posT, lower=True
+        # # # )
+        # print("inv_metric_tensor_grad_vec")
+        # print(inv_metric_tensor_grad_vec)
+
+        # acc = -0.5 * inv_metric_tensor_grad_vec @ kron_vel
+
+        metric_tensor = metric_tensor + jnp.eye(input_dim) * self.jitter
         inv_metric_tensor = jnp.linalg.inv(metric_tensor)
         print("inv")
         print(inv_metric_tensor)

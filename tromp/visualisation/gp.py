@@ -1,28 +1,29 @@
 import matplotlib.pyplot as plt
-import numpy as np
-
 from matplotlib import cm
+from tromp.visualisation.utils import create_grid
 
 
-def plot_contourf(fig, ax, x, y, z, label=''):
-    contf = ax.contourf(x,
-                        y,
-                        z.reshape(x.shape),
-                        cmap=cm.coolwarm,
-                        levels=20,
-                        linewidth=0,
-                        antialiased=False)
+def plot_contourf(fig, ax, x, y, z, label=""):
+    contf = ax.contourf(
+        x,
+        y,
+        z.reshape(x.shape),
+        cmap=cm.coolwarm,
+        levels=20,
+        linewidth=0,
+        antialiased=False,
+    )
     cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
     cbar.set_label(label)
 
 
-def plot_tricontourf(fig, ax, x, y, z, label=''):
+def plot_tricontourf(fig, ax, x, y, z, label=""):
     cont = ax.tricontourf(x, y, z, 15)
     cbar = fig.colorbar(cont, shrink=0.5, aspect=5, ax=ax)
     cbar.set_label(label)
 
 
-def plot_mean_and_var(xx, yy, mu, var, llabel='mean', rlabel='variance'):
+def plot_mean_and_var(xx, yy, mu, var, llabel="mean", rlabel="variance"):
     # fig, axs = plt.subplots(1, 2, figsize=(12, 4))
     fig, axs = plt.subplots(1, 2, figsize=(18, 4))
     # plt.subplots_adjust(wspace=0, hspace=0)

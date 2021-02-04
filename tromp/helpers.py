@@ -126,3 +126,25 @@ def init_straight_trajectory(
     vel_guesses = jnp.broadcast_to(vel_init_guess, (num_col_points, pos_dim))
     state_guesses = jnp.concatenate([pos_guesses, vel_guesses], -1)
     return state_guesses
+
+
+def init_two_segment_straight_trajectory(
+    pos_init, pos_mid, pos_end, vel_init_guess=None, num_col_points=10
+):
+    num_col_points = int(num_col_points / 2)
+    state_guesses_1 = init_straight_trajectory(
+        pos_init,
+        pos_mid,
+        vel_init_guess=vel_init_guess,
+        num_col_points=num_col_points,
+        endpoint=False,
+    )
+
+    state_guesses_2 = init_straight_trajectory(
+        pos_mid,
+        pos_end,
+        vel_init_guess=vel_init_guess,
+        num_col_points=num_col_points,
+    )
+    state_guesses = jnp.concatenate([state_guesses_1, state_guesses_2], 0)
+    return state_guesses

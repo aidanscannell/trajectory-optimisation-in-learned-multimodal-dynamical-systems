@@ -384,11 +384,6 @@ class CollocationGeodesicSolver(BaseSolver):
             lb_defect,
             ub_defect,
         )
-        # defect_constraints = NonlinearConstraint(
-        #     self.collocation_constraint_fn, -0.1, 0.1
-        #     self.collocation_constraint_fn, -0.01, 0.01
-        #     self.collocation_constraint_fn, -0.001, 0.001
-        # )
 
         # Initialise objective function
         objective_args = (pos_init, pos_end_targ, times)

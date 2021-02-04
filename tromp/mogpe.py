@@ -3,7 +3,7 @@ from gpjax.custom_types import InputData, MeanAndVariance, MeanFunc, OutputData
 from gpjax.kernels import Kernel
 # from ProbGeo.gp.gp import (InputData, MeanAndVariance, MeanFunc, OutputData,
 #                            gp_predict)
-from gpjax.prediction import gp_predict
+# from gpjax.prediction import gp_predict
 from jax import jacfwd, jacrev
 from jax import numpy as np
 

@@ -1,7 +1,6 @@
 import jax
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
-from gpjax.prediction import gp_jacobian, gp_predict
 from jax.config import config
 # from tromp.metric_tensors import gp_metric_tensor
 from tromp.mogpe import single_mogpe_mixing_probability
@@ -232,22 +231,7 @@ def plot_svgp_and_start_end(gp, traj_init, traj_opts=None, labels=["", ""]):
 
     # Xnew, xx, yy = create_grid(gp.X, N=961)
     Xnew, xx, yy = create_grid(gp.inducing_variable, N=961)
-    mu, var = gp_predict(
-        Xnew,
-        gp.inducing_variable,
-        kernels=gp.kernel,
-        mean_funcs=gp.mean_function,
-        f=gp.q_mu,
-        q_sqrt=gp.q_sqrt,
-        full_cov=False,
-    )
-    print("mu var")
-    # mu = mu[0:1, :, :]
-    # var = var[0:1, :]
-    # mu = mu[1:2, :, :]
-    # var = var[1:2, :]
-    print(mu.shape)
-    print(var.shape)
+    mu, var = gp.predict_f(Xnew, full_cov=False)
     fig, axs = plot_mean_and_var(
         xx,
         yy,
@@ -265,6 +249,7 @@ def plot_svgp_and_start_end(gp, traj_init, traj_opts=None, labels=["", ""]):
         ax.set_xlabel("$x$")
         ax.set_ylabel("$y$")
         # ax.scatter(gp.X[:, 0], gp.X[:, 1])
+        ax.scatter(gp.inducing_variable[:, 0], gp.inducing_variable[:, 1])
         plot_traj(fig, ax, traj_init, color=color_init, label="Init traj")
         if traj_opts is not None:
             if isinstance(traj_opts, list):

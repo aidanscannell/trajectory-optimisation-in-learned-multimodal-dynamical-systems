@@ -45,3 +45,29 @@ def plot_jacobian_var(xx, yy, xy, cov_j):
         for j in range(axs.shape[1]):
             plot_contourf(fig, axs[i, j], xx, yy, cov_j[:, i, j])
     return fig, axs
+
+
+def plot_svgp_jacobian_mean(svgp):
+    Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
+    fmean, fvar = svgp.predict_f(Xnew, full_cov=False)
+    fig, axs = plot_mean_and_var(xx, yy, fmean, fvar)
+    jac_mean, jac_var = svgp.predict_jacobian_f_wrt_Xnew(Xnew, full_cov=False)
+
+    for ax in axs:
+        ax.quiver(Xnew[:, 0], Xnew[:, 1], jac_mean[:, 0, 0], jac_mean[:, 1, 0])
+    return fig, axs
+
+
+def plot_svgp_jacobian_var(svgp):
+    Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
+    _, jac_var = svgp.predict_jacobian_f_wrt_Xnew(Xnew, full_cov=True)
+    print('jac_var')
+    print(jac_var.shape)
+
+    fig, axs = plt.subplots(2, 2, figsize=(24, 8))
+    plt.subplots_adjust(wspace=0, hspace=0)
+    for i in range(axs.shape[0]):
+        for j in range(axs.shape[1]):
+            plot_contourf(fig, axs[i, j], xx, yy, jac_var[:, i, j])
+
+    return fig, axs

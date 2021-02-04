@@ -15,28 +15,66 @@ from tromp.ode import ODE, GeodesicODE
 config.update("jax_enable_x64", True)
 
 
-def start_end_pos_bounds(state_guesses, pos_init, pos_end):
-    lb = -jnp.ones([*state_guesses.shape]) * jnp.inf
-    ub = jnp.ones([*state_guesses.shape]) * jnp.inf
+def start_end_pos_bounds_lagrange(
+    opt_vars, pos_init, pos_end, pos_init_idx=0, pos_end_idx=-1, tol=0.02
+):
+    # disable bounds on all variables
+    lb = -jnp.ones([*opt_vars.shape]) * jnp.inf
+    ub = jnp.ones([*opt_vars.shape]) * jnp.inf
 
-    for idx, pos in enumerate(pos_init):
-        if pos < 0:
-            lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 1.02)
-            ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 0.98)
-        else:
-            lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 0.98)
-            ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 1.02)
+    def update_bound_at_idx(lb, ub, pos_at_idx, idx, tol=0.02):
+        l_tol = 1 - tol
+        u_tol = 1 + tol
+        for i, pos in enumerate(pos_at_idx):
+            if pos < 0:
+                lb = jax.ops.index_update(
+                    lb, jax.ops.index[idx, i], pos * u_tol
+                )
+                ub = jax.ops.index_update(
+                    ub, jax.ops.index[idx, i], pos * l_tol
+                )
+            else:
+                lb = jax.ops.index_update(
+                    lb, jax.ops.index[idx, i], pos * l_tol
+                )
+                ub = jax.ops.index_update(
+                    ub, jax.ops.index[idx, i], pos * u_tol
+                )
+        return lb, ub
 
-    for idx, pos in enumerate(pos_end):
-        if pos < 0:
-            lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 1.02)
-            ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 0.98)
-        else:
-            lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 0.98)
-            ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 1.02)
+    # add bounds for start and end positions
+    lb, ub = update_bound_at_idx(lb, ub, pos_init, idx=pos_init_idx, tol=tol)
+    lb, ub = update_bound_at_idx(lb, ub, pos_end, idx=pos_end_idx, tol=tol)
+    print("bounds")
+    print(lb)
+    print(ub)
 
     bounds = Bounds(lb=lb.flatten(), ub=ub.flatten())
     return bounds
+
+
+# def start_end_pos_bounds(state_guesses, pos_init, pos_end):
+#     lb = -jnp.ones([*state_guesses.shape]) * jnp.inf
+#     ub = jnp.ones([*state_guesses.shape]) * jnp.inf
+
+#     for idx, pos in enumerate(pos_init):
+#         if pos < 0:
+#             lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 1.02)
+#             ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 0.98)
+#         else:
+#             lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 0.98)
+#             ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 1.02)
+
+#     for idx, pos in enumerate(pos_end):
+#         if pos < 0:
+#             lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 1.02)
+#             ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 0.98)
+#         else:
+#             lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 0.98)
+#             ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 1.02)
+
+#     bounds = Bounds(lb=lb.flatten(), ub=ub.flatten())
+#     return bounds
 
 
 class BaseSolver(objax.Module, abc.ABC):

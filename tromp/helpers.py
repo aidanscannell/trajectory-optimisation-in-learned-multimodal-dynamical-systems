@@ -109,11 +109,19 @@ def create_save_dir():
 
 
 def init_straight_trajectory(
-    pos_init, pos_end_targ, vel_init_guess=None, num_col_points=10
+    pos_init,
+    pos_end,
+    vel_init_guess=None,
+    num_col_points=10,
+    endpoint=True,
 ):
     pos_dim = pos_init.shape[0]
-    pos1_guesses = jnp.linspace(pos_init[0], pos_end_targ[0], num_col_points)
-    pos2_guesses = jnp.linspace(pos_init[1], pos_end_targ[1], num_col_points)
+    pos1_guesses = jnp.linspace(
+        pos_init[0], pos_end[0], num_col_points, endpoint=endpoint
+    )
+    pos2_guesses = jnp.linspace(
+        pos_init[1], pos_end[1], num_col_points, endpoint=endpoint
+    )
     pos_guesses = jnp.stack([pos1_guesses, pos2_guesses], -1)
 
     # pos_guesses = np.random.uniform(

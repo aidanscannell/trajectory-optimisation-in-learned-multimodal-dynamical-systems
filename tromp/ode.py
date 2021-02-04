@@ -19,9 +19,13 @@ class ODE(objax.Module, abc.ABC):
 
 class GeodesicODE(ODE):
     def __init__(
-        self, metric_tensor: RiemannianMetricTensor, jitter: jnp.float64 = 1e-6
+        self, metric_tensor: RiemannianMetricTensor, jitter: jnp.float64 = None
     ):
         self.metric_tensor = metric_tensor
+        if jitter is None:
+            self.jitter = metric_tensor.jitter
+        else:
+            self.jitter = jitter
 
     def metric_fn(self, pos_guesses, full_cov: bool = True):
         # return self.metric_tensor(pos_guesses, full_cov=full_cov)
@@ -30,7 +34,7 @@ class GeodesicODE(ODE):
     def ode_fn(self, times, states):
         print("inside ode_fn")
         print(states.shape)
-        jitter = 1e-6
+        # jitter = 1e-6
         full_cov = True
         input_dim = int(states.shape[-1] / 2)
         if len(states.shape) == 1:

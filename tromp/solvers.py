@@ -215,7 +215,9 @@ class CollocationGeodesicSolver(BaseSolver):
 
         # print("Time Loss: ", times[-1])
         # return norm_sum + self.covariance_weight * trace_metric_sum
-        sum_of_squares = jnp.sum(state_guesses ** 2)
+        # return trace_metric_sum
+        # sum_of_squares = jnp.sum(state_guesses ** 2)
+        sum_of_squares = jnp.sum(pos_guesses ** 2)
         # return norm_sum
         return sum_of_squares
 

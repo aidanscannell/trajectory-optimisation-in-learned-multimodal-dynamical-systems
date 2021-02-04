@@ -1,6 +1,7 @@
 import pathlib
 import time
 
+import gpjax
 import jax.numpy as jnp
 import numpy as np
 from gpjax.kernels import RBF
@@ -62,7 +63,8 @@ def init_svgp_gpjax_from_mogpe_ckpt(
 
     # select the gating function to use
     gating_func = model.gating_network.gating_function_list[expert_num - 1]
-    mean_function = 0.0  # mogpe gating functions have zero mean function
+    mean_function = gpjax.mean_functions.Zero()  # mogpe gating functions have zero mean function
+    # mean_function = 0.0  # mogpe gating functions have zero mean function
     whiten = gating_func.whiten
 
     # sparse GP parameters

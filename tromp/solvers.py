@@ -219,6 +219,122 @@ class CollocationGeodesicSolver(BaseSolver):
         # return norm_sum
         return sum_of_squares
 
+    def lagrange_objective(self, opt_vars, pos_init, pos_end_targ, times):
+        print("inside lagrange")
+
+        if len(pos_init.shape) == 1:
+            input_dim = pos_init.shape[0]
+        opt_vars = opt_vars.reshape([-1, 2 * input_dim])
+        print("opt_vars")
+        print(opt_vars.shape)
+        num_states = times.shape[0]
+        print(num_states)
+
+        state_guesses = opt_vars[:num_states, :]
+        print("state_guesses")
+        print(state_guesses.shape)
+        lagrange_multipliers = opt_vars[num_states:, :]
+        print(lagrange_multipliers.shape)
+        lagrange_multipliers = lagrange_multipliers.reshape(1, -1)
+        print(lagrange_multipliers.shape)
+        eq_constraints = self.collocation_defects(state_guesses)
+        print("eq constraint")
+        print(eq_constraints.shape)
+        eq_constraints = eq_constraints.reshape(-1, 1)
+        # eq_constraints = eq_constraints.reshape(-1, 2*input_dim)
+        print(eq_constraints.shape)
+        objective = self.objective_fn(
+            state_guesses, pos_init, pos_end_targ, times
+        )
+        print("objective lag1")
+        print(objective.shape)
+        lagrange_term = lagrange_multipliers @ eq_constraints
+        print("lagranbe term")
+        print(lagrange_term.shape)
+        # lagrange_objective = objective
+        # lagrange_objective = objective - lagrange_term[0,0]
+        lagrange_objective = -lagrange_term[0, 0]
+        return lagrange_objective
+
+    def solve_trajectory_lagrange(
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+        lb_defect=-0.05,
+        ub_defect=0.05,
+        bounds: Bounds = None,
+    ):
+        method = "SLSQP"
+        # hack as times needed in collocation_constraints_fn
+        self.times = times  # TODO delete this!!
+
+        # bound the start and end (x,y) positions in the state vector
+        # if bounds is None:
+        # bounds = start_end_pos_bounds(
+        #     state_guesses, pos_init, pos_end_targ
+        # )
+
+        # states_shape = state_guesses.shape
+        state_dim = state_guesses.shape[1]
+        num_states = state_guesses.shape[0]
+        # state_guesses = state_guesses.reshape(-1)
+        # state_guesses_var = objax.StateVar(state_guesses)
+        num_defects = num_states - 1
+        lagrange_multipliers = 0.01 * jnp.ones([num_defects, state_dim])
+        print("lagrange_multipliers")
+        print(lagrange_multipliers.shape)
+        print(state_guesses.shape)
+        # lagrange_multipliers_var = objax.StateVar(lagrange_multipliers)
+        opt_vars = jnp.concatenate(
+            [state_guesses, lagrange_multipliers], axis=0
+        )
+        print("opt_vars")
+        print(opt_vars.shape)
+        opt_vars_vars = objax.StateVar(opt_vars)
+
+        bounds = start_end_pos_bounds_lagrange(
+            opt_vars,
+            pos_init,
+            pos_end_targ,
+            pos_init_idx=0,
+            # pos_end_idx=num_states,
+            pos_end_idx=num_states - 1,
+            tol=0.02,
+        )
+
+        # Initialise lagrange objective fn with collocation defect constraints
+        objective_args = (pos_init, pos_end_targ, times)
+        jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars_vars})
+        jitted_lagrange_objective = objax.Jit(
+            self.lagrange_objective, jitted_fn_vars
+        )
+        # lag = self.lagrange_objective(opt_vars, pos_init, pos_end_targ, times)
+        # print('after lag fun call')
+        # print(lag.shape)
+
+        res = sp.optimize.minimize(
+            jitted_lagrange_objective,
+            opt_vars,
+            # state_guesses,
+            method=method,
+            bounds=bounds,
+            options={"disp": True, "maxiter": self.maxiter},
+            args=objective_args,
+        )
+        print("Optimisation Result")
+        print(res)
+        # print(res.x.shape)
+        opt_vars = res.x
+        num_lagrange = lagrange_multipliers.shape[0]
+        opt_vars = opt_vars.reshape([num_lagrange + num_states, state_dim])
+        # state_opt = state_opt.reshape(states_shape)
+        state_opt = opt_vars[:num_states, :]
+        print("Optimised state trajectory")
+        print(state_opt)
+        return state_opt
+
     def solve_trajectory(
         self,
         state_guesses,

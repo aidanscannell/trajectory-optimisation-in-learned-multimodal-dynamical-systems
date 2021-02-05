@@ -447,7 +447,9 @@ class CollocationGeodesicSolver(BaseSolver):
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
         # lagrange_multipliers = 0.01 * jnp.ones([num_defects * state_dim])
-        lagrange_multipliers = jnp.ones([num_defects * state_dim])
+        # lagrange_multipliers = 1./5000.0*jnp.ones([num_defects * state_dim])
+        # lagrange_multipliers = 1.0 / 5000.0 * jnp.ones([num_defects * pos_dim])
+        lagrange_multipliers = jnp.zeros([num_defects * state_dim])
         print("lagrange_multipliers")
         print(lagrange_multipliers.shape)
         opt_vars = jnp.concatenate(
@@ -463,7 +465,7 @@ class CollocationGeodesicSolver(BaseSolver):
         jitted_lagrange_objective = objax.Jit(
             self.lagrange_objective, jitted_fn_vars
         )
-        jitted_objective = objax.Jit(self.objective_fn, jitted_fn_vars)
+        # jitted_objective = objax.Jit(self.objective_fn, jitted_fn_vars)
         # lag = self.lagrange_objective(opt_vars, pos_init, pos_end_targ, times)
         # print('after lag fun call')
         # print(lag.shape)

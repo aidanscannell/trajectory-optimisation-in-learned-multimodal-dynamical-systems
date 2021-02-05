@@ -303,21 +303,30 @@ class CollocationGeodesicSolver(BaseSolver):
         lagrange_multipliers = lagrange_multipliers.reshape(1, -1)
         return state_guesses, lagrange_multipliers
 
+    def lagrange_objective(self, opt_vars, pos_init, pos_end_targ, times):
+        print("inside lagrange objective")
+        (
+            state_guesses,
+            lagrange_multipliers,
+        ) = self.opt_vars_to_states_and_lagrange(
+            opt_vars, pos_init, pos_end_targ, num_states=times.shape[0]
+        )
+
+        eq_constraints = self.collocation_defects_lagrange(
+            state_guesses, pos_init, pos_end_targ, times
+        )
         eq_constraints = eq_constraints.reshape(-1, 1)
-        # eq_constraints = eq_constraints.reshape(-1, 2*input_dim)
-        print(eq_constraints.shape)
+        lagrange_term = lagrange_multipliers @ eq_constraints
+        # objective = self.sum_of_squares_objective(
+        #     state_guesses, pos_init, pos_end_targ, times
+        # )
         objective = self.objective_fn(
             state_guesses, pos_init, pos_end_targ, times
         )
-        print("objective lag1")
-        print(objective.shape)
-        lagrange_term = lagrange_multipliers @ eq_constraints
-        print("lagranbe term")
-        print(lagrange_term.shape)
-        # lagrange_objective = objective
-        # lagrange_objective = objective - lagrange_term[0,0]
-        lagrange_objective = -lagrange_term[0, 0]
-        return lagrange_objective
+        lagrange_objective = objective - lagrange_term[0, 0]
+        return objective
+        # lagrange_objective = - lagrange_term[0, 0]
+        # return lagrange_objective
 
     def solve_trajectory_lagrange(
         self,

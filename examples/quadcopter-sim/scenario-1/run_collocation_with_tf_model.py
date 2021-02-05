@@ -22,8 +22,14 @@ maxiter = 500  # max number of iterations
 num_col_points = 10  # number of collocation points to use in solver
 lb_defect = -0.05
 ub_defect = 0.05
+lb_defect = -0.08
+ub_defect = 0.08
+# lb_defect = -0.09
+# ub_defect = 0.09
 lb_defect = -0.01  # works with cov=40 jitter=1e-4
 ub_defect = 0.01
+# lb_defect = -0.5  # works with cov=40 jitter=1e-4
+# ub_defect = 0.5
 # lb_defect = -0.006
 # ub_defect = 0.006
 # lb_defect = -0.1
@@ -74,11 +80,17 @@ state_guesses = init_straight_trajectory(
 covariance_weight = 40.0
 # covariance_weight = 20.0
 # covariance_weight = 10.0
-# covariance_weight = 30.0
+covariance_weight = 30.0
 # covariance_weight = 3.0
 # covariance_weight = 7.0
 # covariance_weight = 0.0
-jitter = 1e-4
+# covariance_weight = 1.0
+# covariance_weight = 0.1
+# covariance_weight = 0.
+jitter_ode = 1e-6
+jitter_ode = 1e-4
+# jitter_ode = 1e-9
+jitter_metric = 1e-4
 # jitter = 1e-6
 # jitter = 1e-3
 # jitter = 1e-2
@@ -109,9 +121,9 @@ svgp = init_svgp_gpjax_from_mogpe_ckpt(
 
 
 metric_tensor = SVGPMetricTensor(
-    gp=svgp, covariance_weight=covariance_weight, jitter=jitter
+    gp=svgp, covariance_weight=covariance_weight, jitter=jitter_metric
 )
-ode = GeodesicODE(metric_tensor=metric_tensor)
+ode = GeodesicODE(metric_tensor=metric_tensor, jitter=jitter_ode)
 
 collocation_solver = CollocationGeodesicSolver(
     ode=ode,
@@ -121,10 +133,18 @@ collocation_solver = CollocationGeodesicSolver(
 
 
 # plot_svgp_and_start_end(svgp, traj_init=state_guesses)
-plot_trajs_over_svgp(svgp, traj_init=state_guesses)
-plt.show()
+# plot_trajs_over_svgp(svgp, traj_init=state_guesses)
+# plt.show()
 
 t = time.time()
+# geodesic_traj = collocation_solver.solve_trajectory_lagrange(
+#     state_guesses=state_guesses,
+#     pos_init=pos_init,
+#     pos_end_targ=pos_end_targ,
+#     times=times,
+#     lb_defect=lb_defect,
+#     ub_defect=ub_defect,
+# )
 geodesic_traj = collocation_solver.solve_trajectory(
     state_guesses=state_guesses,
     pos_init=pos_init,

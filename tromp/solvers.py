@@ -64,9 +64,23 @@ def state_guesses_to_opt_vars(state_guesses):
     state_guesses = state_guesses[pos_dim:]
     print("state guesses removed start pos")
     print(state_guesses.shape)
-    # Remove end state AND velocity from optimisation variables
-    state_guesses = state_guesses[:-state_dim]
-    print("state guesses removed end state (pos AND vel)")
+    # Remove end pos from optimisation variables
+    # state_guesses = state_guesses[:-state_dim]
+    # end_state_start_idx = num_states * state_dim - state_dim - pos_dim
+    # end_pos_idxs = jnp.arange(end_state_start_idx,end_state_start_idx+pos_dim)
+    # print("end_pos_idxs")
+    # print(end_pos_idxs)
+    # state_guesses = jnp.delete(state_guesses, end_pos_idxs)
+    state_guesses_before = state_guesses[:-state_dim]
+    print("state_guesses_before")
+    print(state_guesses_before.shape)
+    state_guesses_end = state_guesses[-state_dim + pos_dim :]
+    print("state_guesses_end")
+    print(state_guesses_end.shape)
+    state_guesses = jnp.concatenate(
+        [state_guesses_before, state_guesses_end], axis=0
+    )
+    print("state guesses removed end pos")
     print(state_guesses.shape)
     return state_guesses
 
@@ -147,15 +161,20 @@ class CollocationGeodesicSolver(BaseSolver):
         self.covariance_weight = covariance_weight
         self.maxiter = maxiter
 
-    def collocation_defects(self, state_guesses):
+    def collocation_defects(self, opt_vars):
         times = self.times  # remove this
-        input_dim = 2
-        # input_dim = 4
-        state_guesses = state_guesses.reshape([-1, 2 * input_dim])
-        num_timesteps = times.shape[0]
+        # num_timesteps = times.shape[0]
+        num_states = times.shape[0]
+        state_guesses = self.opt_vars_to_states(
+            opt_vars, self.pos_init, self.pos_end_targ, num_states
+        )
+        # state_dim = 4
+        print("inside defects")
+        print(state_guesses.shape)
+        # state_guesses = state_guesses.reshape([-1, state_dim])
         dt = times[-1] - times[0]
         time_col = jnp.linspace(
-            times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
+            times[0] + dt / 2, times[-1] - dt / 2, num_states - 1
         )
 
         def ode_fn(state):
@@ -180,48 +199,40 @@ class CollocationGeodesicSolver(BaseSolver):
         print(defect)
         return defect.flatten()
 
-    def collocation_defects_lagrange(
-        self, state_guesses, pos_init, pos_end_targ, times
-    ):
-        if len(pos_init.shape) == 1:
-            pos_dim = pos_init.shape[0]
-            state_dim = 2 * pos_dim
-        state_guesses = state_guesses.reshape([-1, state_dim])
-        num_timesteps = times.shape[0]
-        dt = times[-1] - times[0]
-        time_col = jnp.linspace(
-            times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
-        )
+    # def collocation_defects_lagrange(
+    #     self, state_guesses, pos_init, pos_end_targ, times
+    # ):
+    #     if len(pos_init.shape) == 1:
+    #         pos_dim = pos_init.shape[0]
+    #         state_dim = 2 * pos_dim
+    #     state_guesses = state_guesses.reshape([-1, state_dim])
+    #     num_timesteps = times.shape[0]
+    #     dt = times[-1] - times[0]
+    #     time_col = jnp.linspace(
+    #         times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
+    #     )
 
-        # Update the start/end positions back to their target values
-        # pos_guesses = jax.ops.index_update(
-        #     pos_guesses, jax.ops.index[0, :], pos_init
-        # )
-        # state_guesses = jax.ops.index_update(
-        #     state_guesses, jax.ops.index[-1, :pos_dim], pos_end_targ
-        # )
+    #     def ode_fn(state):
+    #         return self.ode.ode_fn(times, state)
 
-        def ode_fn(state):
-            return self.ode.ode_fn(times, state)
+    #     state_prime = jax.vmap(ode_fn)(state_guesses)
+    #     # state_prime = ode_fn(state_guesses)
+    #     state_ll = state_guesses[0:-1, :]
+    #     state_rr = state_guesses[1:, :]
+    #     state_prime_ll = state_prime[0:-1, :]
+    #     state_prime_rr = state_prime[1:, :]
+    #     state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
+    #         state_prime_ll - state_prime_rr
+    #     )
+    #     state_prime_col = jax.vmap(ode_fn)(state_col)
+    #     # state_prime_col = ode_fn(state_col)
 
-        state_prime = jax.vmap(ode_fn)(state_guesses)
-        # state_prime = ode_fn(state_guesses)
-        state_ll = state_guesses[0:-1, :]
-        state_rr = state_guesses[1:, :]
-        state_prime_ll = state_prime[0:-1, :]
-        state_prime_rr = state_prime[1:, :]
-        state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
-            state_prime_ll - state_prime_rr
-        )
-        state_prime_col = jax.vmap(ode_fn)(state_col)
-        # state_prime_col = ode_fn(state_col)
-
-        defect = (state_ll - state_rr) + dt / 6 * (
-            state_prime_ll + 4 * state_prime_col + state_prime_rr
-        )
-        print("Collocation defects")
-        print(defect)
-        return defect.flatten()
+    #     defect = (state_ll - state_rr) + dt / 6 * (
+    #         state_prime_ll + 4 * state_prime_col + state_prime_rr
+    #     )
+    #     print("Collocation defects")
+    #     print(defect)
+    #     return defect.flatten()
 
     def dummy_objective_fn(
         self,
@@ -234,25 +245,31 @@ class CollocationGeodesicSolver(BaseSolver):
 
     def objective_fn(
         self,
-        state_guesses,
+        opt_vars,
+        # state_guesses,
         pos_init,
         pos_end_targ,
         times,
     ):
         print("inside objective")
-        print(state_guesses.shape)
         if len(pos_init.shape) == 1:
             input_dim = pos_init.shape[0]
+        num_states = times.shape[0]
+        state_guesses = self.opt_vars_to_states(
+            opt_vars, pos_init, pos_end_targ, num_states
+        )
+        print(state_guesses.shape)
+
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
         pos_guesses = state_guesses[:, 0:input_dim]
 
-        # Update the start/end positions back to their target values
-        pos_guesses = jax.ops.index_update(
-            pos_guesses, jax.ops.index[0, :], pos_init
-        )
-        pos_guesses = jax.ops.index_update(
-            pos_guesses, jax.ops.index[-1, :], pos_end_targ
-        )
+        # # Update the start/end positions back to their target values
+        # pos_guesses = jax.ops.index_update(
+        #     pos_guesses, jax.ops.index[0, :], pos_init
+        # )
+        # pos_guesses = jax.ops.index_update(
+        #     pos_guesses, jax.ops.index[-1, :], pos_end_targ
+        # )
 
         # Calculate Euclidean distance
         # norm = jnp.linalg.norm(pos_guesses, axis=-1, ord=-2)
@@ -284,19 +301,55 @@ class CollocationGeodesicSolver(BaseSolver):
 
     def sum_of_squares_objective(
         self,
-        state_guesses,
+        opt_vars,
         pos_init,
         pos_end_targ,
         times,
     ):
         print("inside sum of squares objective")
-        print(state_guesses.shape)
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
-        state_guesses = state_guesses.reshape([-1, 2 * pos_dim])
-        pos_guesses = state_guesses[:, :pos_dim]
-        sum_of_squares = jnp.sum(pos_guesses ** 2)
-        return sum_of_squares
+        num_states = times.shape[0]
+        state_guesses = self.opt_vars_to_states(
+            opt_vars, pos_init, pos_end_targ, num_states
+        )
+        print(state_guesses.shape)
+        # state_guesses = state_guesses.reshape([-1, 2 * pos_dim])
+        # pos_guesses = state_guesses[:, :pos_dim]
+        # sum_of_squares = jnp.sum(pos_guesses ** 2)
+        sum_of_squares = jnp.sum(state_guesses ** 2)
+        return sum_of_squares / 1000
+
+    def opt_vars_to_states(self, opt_vars, pos_init, pos_end_targ, num_states):
+        if len(pos_init.shape) == 1:
+            pos_dim = pos_init.shape[0]
+            state_dim = 2 * pos_dim
+        print('inside opt_vars_to_states')
+        print(pos_dim)
+        print(state_dim)
+        state_guesses = opt_vars[: num_states*state_dim - 2 * pos_dim]
+        print(state_guesses.shape)
+        state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
+
+        state_guesses_before = state_guesses[:-pos_dim]
+        print("state_guesses_before")
+        print(state_guesses_before.shape)
+        vel_end = state_guesses[-pos_dim:]
+        print("vel_end")
+        print(vel_end.shape)
+        state_guesses = jnp.concatenate(
+            [state_guesses_before, pos_end_targ], axis=0
+        )
+        print("state guesses add end pos")
+        print(state_guesses.shape)
+        state_guesses = jnp.concatenate([state_guesses, vel_end], axis=0)
+        print("state guesses edded end vel")
+        print(state_guesses.shape)
+
+        # end_state = jnp.concatenate([pos_end_targ, jnp.array([0, 0])], axis=0)
+        # state_guesses = jnp.concatenate([state_guesses, end_state], axis=0)
+        state_guesses = state_guesses.reshape([num_states, state_dim])
+        return state_guesses
 
     def opt_vars_to_states_and_lagrange(
         self, opt_vars, pos_init, pos_end_targ, num_states
@@ -304,14 +357,19 @@ class CollocationGeodesicSolver(BaseSolver):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
             state_dim = 2 * pos_dim
-        state_guesses = opt_vars[: (num_states - 1) * state_dim - pos_dim]
-        state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
-        end_state = jnp.concatenate([pos_end_targ, jnp.array([0, 0])], axis=0)
-        state_guesses = jnp.concatenate([state_guesses, end_state], axis=0)
-        state_guesses = state_guesses.reshape([num_states, state_dim])
+        # state_guesses = opt_vars[: (num_states - 1) * state_dim - pos_dim]
+        # state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
+        # end_state = jnp.concatenate([pos_end_targ, jnp.array([0, 0])], axis=0)
+        # state_guesses = jnp.concatenate([state_guesses, end_state], axis=0)
+        # state_guesses = state_guesses.reshape([num_states, state_dim])
+        state_guesses = self.opt_vars_to_states(
+            opt_vars, pos_init, pos_end_targ, num_states
+        )
 
         lagrange_multipliers = opt_vars[
-            (num_states - 1) * state_dim - pos_dim :
+            # (num_states - 1) * state_dim - pos_dim :
+            num_states*state_dim
+            - 2 * pos_dim :
         ]
         lagrange_multipliers = lagrange_multipliers.reshape(1, -1)
         return state_guesses, lagrange_multipliers
@@ -325,21 +383,20 @@ class CollocationGeodesicSolver(BaseSolver):
             opt_vars, pos_init, pos_end_targ, num_states=times.shape[0]
         )
 
-        eq_constraints = self.collocation_defects_lagrange(
-            state_guesses, pos_init, pos_end_targ, times
-        )
+        eq_constraints = self.collocation_defects(opt_vars)
+        # eq_constraints = self.collocation_defects_lagrange(
+        #     state_guesses, pos_init, pos_end_targ, times
+        # )
         eq_constraints = eq_constraints.reshape(-1, 1)
         lagrange_term = lagrange_multipliers @ eq_constraints
         # objective = self.sum_of_squares_objective(
         #     state_guesses, pos_init, pos_end_targ, times
         # )
-        objective = self.objective_fn(
-            state_guesses, pos_init, pos_end_targ, times
-        )
+        objective = self.objective_fn(opt_vars, pos_init, pos_end_targ, times)
         lagrange_objective = objective - lagrange_term[0, 0]
-        return objective
+        # return objective
         # lagrange_objective = - lagrange_term[0, 0]
-        # return lagrange_objective
+        return lagrange_objective / 1000
 
     def solve_trajectory_lagrange(
         self,
@@ -349,6 +406,11 @@ class CollocationGeodesicSolver(BaseSolver):
         times,
     ):
         self.state_guesses = state_guesses
+        self.pos_init = pos_init
+        self.pos_end_targ = pos_end_targ
+        # hack as times needed in collocation_constraints_fn
+        self.times = times  # TODO delete this!!
+
         method = "SLSQP"
         # method = "L-BFGS-B"
 
@@ -424,32 +486,35 @@ class CollocationGeodesicSolver(BaseSolver):
         bounds: Bounds = None,
     ):
         self.state_guesses = state_guesses
-
-        method = "SLSQP"
+        self.pos_init = pos_init
+        self.pos_end_targ = pos_end_targ
         # hack as times needed in collocation_constraints_fn
         self.times = times  # TODO delete this!!
 
+        method = "SLSQP"
+
         # bound the start and end (x,y) positions in the state vector
-        if bounds is None:
-            # bounds = start_end_pos_bounds(
-            #     state_guesses, pos_init, pos_end_targ
-            # )
-            bounds = start_end_pos_bounds_lagrange(
-                state_guesses,
-                pos_init,
-                pos_end_targ,
-                pos_init_idx=0,
-                pos_end_idx=-1,
-                tol=0.02,
-            )
+        # if bounds is None:
+        #     # bounds = start_end_pos_bounds(
+        #     #     state_guesses, pos_init, pos_end_targ
+        #     # )
+        #     bounds = start_end_pos_bounds_lagrange(
+        #         state_guesses,
+        #         pos_init,
+        #         pos_end_targ,
+        #         pos_init_idx=0,
+        #         pos_end_idx=-1,
+        #         tol=0.02,
+        #     )
 
         states_shape = state_guesses.shape
-        state_guesses = state_guesses.reshape(-1)
-        state_guesses_var = objax.StateVar(state_guesses)
+        state_guesses_vars = state_guesses_to_opt_vars(state_guesses)
+        # state_guesses = state_guesses.reshape(-1)
+        # state_guesses_StateVar = objax.StateVar(state_guesses_vars)
 
         # Initialise collocation defects as constraints
         jitted_fn_vars = objax.VarCollection(
-            {"state_guesses": state_guesses_var}
+            {"state_guesses": objax.StateVar(state_guesses_vars)}
         )
         jitted_collocation_defects = objax.Jit(
             self.collocation_defects, jitted_fn_vars
@@ -480,9 +545,10 @@ class CollocationGeodesicSolver(BaseSolver):
             jitted_sum_of_squares_objective,
             # jitted_dummy_objective_fn,
             # self.dummy_objective_fn,
-            state_guesses,
+            # state_guesses,
+            state_guesses_vars,
             method=method,
-            bounds=bounds,
+            # bounds=bounds,
             constraints=jitted_collocation_constraints,
             # constraints=collocation_constraints,
             options={"disp": True, "maxiter": self.maxiter},
@@ -490,8 +556,13 @@ class CollocationGeodesicSolver(BaseSolver):
         )
         print("Optimisation Result")
         print(self.optimisation_result)
-        self.optimised_trajectory = self.optimisation_result.x.reshape(
-            states_shape
+        opt_vars = self.optimisation_result.x
+        # opt_vars= self.optimisation_result.x.reshape(
+        #     states_shape
+        # )
+
+        self.optimised_trajectory = self.opt_vars_to_states(
+            opt_vars, pos_init, pos_end_targ, states_shape[0]
         )
         # state_opt = state_opt.reshape(states_shape)
         print("Optimised Trajectory")

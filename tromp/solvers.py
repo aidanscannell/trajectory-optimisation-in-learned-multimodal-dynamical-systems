@@ -199,41 +199,6 @@ class CollocationGeodesicSolver(BaseSolver):
         print(defect)
         return defect.flatten()
 
-    # def collocation_defects_lagrange(
-    #     self, state_guesses, pos_init, pos_end_targ, times
-    # ):
-    #     if len(pos_init.shape) == 1:
-    #         pos_dim = pos_init.shape[0]
-    #         state_dim = 2 * pos_dim
-    #     state_guesses = state_guesses.reshape([-1, state_dim])
-    #     num_timesteps = times.shape[0]
-    #     dt = times[-1] - times[0]
-    #     time_col = jnp.linspace(
-    #         times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
-    #     )
-
-    #     def ode_fn(state):
-    #         return self.ode.ode_fn(times, state)
-
-    #     state_prime = jax.vmap(ode_fn)(state_guesses)
-    #     # state_prime = ode_fn(state_guesses)
-    #     state_ll = state_guesses[0:-1, :]
-    #     state_rr = state_guesses[1:, :]
-    #     state_prime_ll = state_prime[0:-1, :]
-    #     state_prime_rr = state_prime[1:, :]
-    #     state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
-    #         state_prime_ll - state_prime_rr
-    #     )
-    #     state_prime_col = jax.vmap(ode_fn)(state_col)
-    #     # state_prime_col = ode_fn(state_col)
-
-    #     defect = (state_ll - state_rr) + dt / 6 * (
-    #         state_prime_ll + 4 * state_prime_col + state_prime_rr
-    #     )
-    #     print("Collocation defects")
-    #     print(defect)
-    #     return defect.flatten()
-
     def dummy_objective_fn(
         self,
         state_guesses,

@@ -383,9 +383,9 @@ class CollocationGeodesicSolver(BaseSolver):
         # lag = self.lagrange_objective(opt_vars, pos_init, pos_end_targ, times)
         # print('after lag fun call')
         # print(lag.shape)
-        def jac_fn(opt_vats, pos_init, pos_end_targ, times):
+        def jac_fn(opt_vars, pos_init, pos_end_targ, times):
             jac_fn_ = jax.jacfwd(self.lagrange_objective)
-            return jac_fn_(opt_vats, pos_init, pos_end_targ, times)
+            return jac_fn_(opt_vars, pos_init, pos_end_targ, times)
 
         jitted_jac_fn = objax.Jit(jac_fn, jitted_fn_vars)
 

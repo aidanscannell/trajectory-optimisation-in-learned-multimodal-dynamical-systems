@@ -289,25 +289,14 @@ class CollocationGeodesicSolver(BaseSolver):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
             state_dim = 2 * pos_dim
-        # state_guesses = opt_vars[: (num_states - 1) * state_dim - pos_dim]
-        # state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
-        # end_state = jnp.concatenate([pos_end_targ, jnp.array([0, 0])], axis=0)
-        # state_guesses = jnp.concatenate([state_guesses, end_state], axis=0)
-        # state_guesses = state_guesses.reshape([num_states, state_dim])
         state_guesses = self.opt_vars_to_states(
             opt_vars, pos_init, pos_end_targ, num_states
         )
 
-        lagrange_multipliers = opt_vars[
-            # (num_states - 1) * state_dim - pos_dim :
-            num_states*state_dim
-            - 2 * pos_dim :
-        ]
-        lagrange_multipliers = lagrange_multipliers.reshape(1, -1)
+        lagrange_multipliers = opt_vars[num_states * state_dim - 2 * pos_dim :]
         return state_guesses, lagrange_multipliers
 
     def lagrange_objective(self, opt_vars, pos_init, pos_end_targ, times):
-        print("inside lagrange objective")
         (
             state_guesses,
             lagrange_multipliers,
@@ -316,19 +305,13 @@ class CollocationGeodesicSolver(BaseSolver):
         )
 
         eq_constraints = self.collocation_defects(opt_vars)
-        # eq_constraints = self.collocation_defects_lagrange(
-        #     state_guesses, pos_init, pos_end_targ, times
-        # )
-        eq_constraints = eq_constraints.reshape(-1, 1)
-        lagrange_term = lagrange_multipliers @ eq_constraints
-        # objective = self.sum_of_squares_objective(
-        #     state_guesses, pos_init, pos_end_targ, times
-        # )
-        objective = self.objective_fn(opt_vars, pos_init, pos_end_targ, times)
-        lagrange_objective = objective - lagrange_term[0, 0]
-        # return objective
-        # lagrange_objective = - lagrange_term[0, 0]
-        return lagrange_objective / 1000
+        lagrange_term = jnp.sum(lagrange_multipliers * eq_constraints)
+        objective = self.sum_of_squares_objective(
+            opt_vars, pos_init, pos_end_targ, times
+        )
+        lagrange_objective = objective - lagrange_term
+        return lagrange_objective
+
     def solve_trajectory_lagrange_jax(
             self, state_guesses, pos_init, pos_end_targ, times, step_size=0.1, states_tol=0.2
     ):

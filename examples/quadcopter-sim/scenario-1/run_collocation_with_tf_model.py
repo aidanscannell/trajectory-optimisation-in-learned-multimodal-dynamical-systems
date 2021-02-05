@@ -11,8 +11,9 @@ from tromp.helpers import (init_straight_trajectory,
                            init_svgp_gpjax_from_mogpe_ckpt)
 from tromp.metric_tensors import SVGPMetricTensor
 from tromp.ode import GeodesicODE
+from tromp.plotting.plot_trajectories import plot_svgp_and_start_end
+from tromp.plotting.solver import plot_solver_trajs_over_svgp
 from tromp.solvers import CollocationGeodesicSolver
-from tromp.visualisation.plot_trajectories import plot_svgp_and_start_end
 
 #########################
 # Configure solver params
@@ -135,7 +136,9 @@ duration = time.time() - t
 print("Optimisation duration: ", duration)
 
 save_img_dir = "./images"
-plot_svgp_and_start_end(svgp, traj_init=state_guesses, traj_opts=geodesic_traj)
+
+plot_solver_trajs_over_svgp(collocation_solver)
+# plot_svgp_and_start_end(svgp, traj_init=state_guesses, traj_opts=geodesic_traj)
 plt.savefig(
     save_img_dir + "/init-and-opt-trajs-on-svgp-new.pdf", transparent=True
 )

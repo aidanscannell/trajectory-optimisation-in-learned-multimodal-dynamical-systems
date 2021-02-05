@@ -53,6 +53,24 @@ def start_end_pos_bounds_lagrange(
     return bounds
 
 
+def state_guesses_to_opt_vars(state_guesses):
+    # Flatten state guesses
+    state_dim = state_guesses.shape[1]
+    pos_dim = int(state_dim / 2)
+    num_states = state_guesses.shape[0]
+    state_guesses = state_guesses.reshape(-1)
+
+    # Remove start state from optimisation variables
+    state_guesses = state_guesses[pos_dim:]
+    print("state guesses removed start pos")
+    print(state_guesses.shape)
+    # Remove end state AND velocity from optimisation variables
+    state_guesses = state_guesses[:-state_dim]
+    print("state guesses removed end state (pos AND vel)")
+    print(state_guesses.shape)
+    return state_guesses
+
+
 # def start_end_pos_bounds(state_guesses, pos_init, pos_end):
 #     lb = -jnp.ones([*state_guesses.shape]) * jnp.inf
 #     ub = jnp.ones([*state_guesses.shape]) * jnp.inf
@@ -337,19 +355,10 @@ class CollocationGeodesicSolver(BaseSolver):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
             # state_dim = 2 * pos_dim
-        # Flatten state guesses
         state_dim = state_guesses.shape[1]
         num_states = state_guesses.shape[0]
-        state_guesses = state_guesses.reshape(-1)
 
-        # Remove start state from optimisation variables
-        state_guesses = state_guesses[pos_dim:]
-        print("state guesses removed start pos")
-        print(state_guesses.shape)
-        # Remove end state AND velocity from optimisation variables
-        state_guesses = state_guesses[:-state_dim]
-        print("state guesses removed end state (pos AND vel)")
-        print(state_guesses.shape)
+        state_guesses_vars = state_guesses_to_opt_vars(state_guesses)
 
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
@@ -358,7 +367,7 @@ class CollocationGeodesicSolver(BaseSolver):
         print("lagrange_multipliers")
         print(lagrange_multipliers.shape)
         opt_vars = jnp.concatenate(
-            [state_guesses, lagrange_multipliers], axis=0
+            [state_guesses_vars, lagrange_multipliers], axis=0
         )
         print("opt_vars")
         print(opt_vars.shape)

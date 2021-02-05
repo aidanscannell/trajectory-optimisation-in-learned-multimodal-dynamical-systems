@@ -24,9 +24,7 @@ def plot_tricontourf(fig, ax, x, y, z, label=""):
 
 
 def plot_mean_and_var(xx, yy, mu, var, llabel="mean", rlabel="variance"):
-    # fig, axs = plt.subplots(1, 2, figsize=(12, 4))
     fig, axs = plt.subplots(1, 2, figsize=(18, 4))
-    # plt.subplots_adjust(wspace=0, hspace=0)
     plot_contourf(fig, axs[0], xx, yy, mu, label=llabel)
     plot_contourf(fig, axs[1], xx, yy, var, label=rlabel)
     return fig, axs
@@ -47,28 +45,28 @@ def plot_jacobian_var(xx, yy, xy, cov_j):
             plot_contourf(fig, axs[i, j], xx, yy, cov_j[:, i, j])
     return fig, axs
 
+############################################################
+# Methods for plotting from an instance of gpjax.models.svgp
+############################################################
+
+def plot_svgp_mean_and_var(svgp,mean_label="Mean", var_label="Variance"):
+    Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
+    fmean, fvar = svgp.predict_f(Xnew, full_cov=False)
+    return plot_mean_and_var(
+        xx, yy, fmean, fvar, llabel=mean_label, rlabel=var_label
+    )
+
 
 def plot_svgp_jacobian_mean(svgp):
     Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
     fmean, fvar = svgp.predict_f(Xnew, full_cov=False)
-    fig, axs = plot_mean_and_var(xx, yy, fmean, fvar)
     jac_mean, jac_var = svgp.predict_jacobian_f_wrt_Xnew(Xnew, full_cov=False)
-
-    for ax in axs:
-        ax.quiver(Xnew[:, 0], Xnew[:, 1], jac_mean[:, 0, 0], jac_mean[:, 1, 0])
-    return fig, axs
+    return plot_jacobian_mean(xx, yy, Xnew, jac_mean, fmean, fvar)
 
 
 def plot_svgp_jacobian_var(svgp):
     Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
     _, jac_var = svgp.predict_jacobian_f_wrt_Xnew(Xnew, full_cov=True)
-    print('jac_var')
+    print("jac_var")
     print(jac_var.shape)
-
-    fig, axs = plt.subplots(2, 2, figsize=(24, 8))
-    plt.subplots_adjust(wspace=0, hspace=0)
-    for i in range(axs.shape[0]):
-        for j in range(axs.shape[1]):
-            plot_contourf(fig, axs[i, j], xx, yy, jac_var[:, i, j])
-
-    return fig, axs
+    return plot_jacobian_var(xx, yy, Xnew, jac_var)

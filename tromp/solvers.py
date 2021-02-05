@@ -280,11 +280,6 @@ class CollocationGeodesicSolver(BaseSolver):
         sum_of_squares = jnp.sum(pos_guesses ** 2)
         return sum_of_squares
 
-        state_guesses = opt_vars[:num_states, :]
-        print("state_guesses")
-        print(state_guesses.shape)
-        lagrange_multipliers = opt_vars[num_states:, :]
-        print(lagrange_multipliers.shape)
     def opt_vars_to_states_and_lagrange(
         self, opt_vars, pos_init, pos_end_targ, num_states
     ):
@@ -334,48 +329,40 @@ class CollocationGeodesicSolver(BaseSolver):
         pos_init,
         pos_end_targ,
         times,
-        lb_defect=-0.05,
-        ub_defect=0.05,
-        bounds: Bounds = None,
     ):
         self.state_guesses = state_guesses
         method = "SLSQP"
-        # hack as times needed in collocation_constraints_fn
-        self.times = times  # TODO delete this!!
+        # method = "L-BFGS-B"
 
-        # bound the start and end (x,y) positions in the state vector
-        # if bounds is None:
-        # bounds = start_end_pos_bounds(
-        #     state_guesses, pos_init, pos_end_targ
-        # )
-
-        # states_shape = state_guesses.shape
+        if len(pos_init.shape) == 1:
+            pos_dim = pos_init.shape[0]
+            # state_dim = 2 * pos_dim
+        # Flatten state guesses
         state_dim = state_guesses.shape[1]
         num_states = state_guesses.shape[0]
-        # state_guesses = state_guesses.reshape(-1)
-        # state_guesses_var = objax.StateVar(state_guesses)
+        state_guesses = state_guesses.reshape(-1)
+
+        # Remove start state from optimisation variables
+        state_guesses = state_guesses[pos_dim:]
+        print("state guesses removed start pos")
+        print(state_guesses.shape)
+        # Remove end state AND velocity from optimisation variables
+        state_guesses = state_guesses[:-state_dim]
+        print("state guesses removed end state (pos AND vel)")
+        print(state_guesses.shape)
+
+        # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
-        lagrange_multipliers = 0.01 * jnp.ones([num_defects, state_dim])
+        # lagrange_multipliers = 0.01 * jnp.ones([num_defects * state_dim])
+        lagrange_multipliers = jnp.ones([num_defects * state_dim])
         print("lagrange_multipliers")
         print(lagrange_multipliers.shape)
-        print(state_guesses.shape)
-        # lagrange_multipliers_var = objax.StateVar(lagrange_multipliers)
         opt_vars = jnp.concatenate(
             [state_guesses, lagrange_multipliers], axis=0
         )
         print("opt_vars")
         print(opt_vars.shape)
         opt_vars_vars = objax.StateVar(opt_vars)
-
-        bounds = start_end_pos_bounds_lagrange(
-            opt_vars,
-            pos_init,
-            pos_end_targ,
-            pos_init_idx=0,
-            # pos_end_idx=num_states,
-            pos_end_idx=num_states - 1,
-            tol=0.02,
-        )
 
         # Initialise lagrange objective fn with collocation defect constraints
         objective_args = (pos_init, pos_end_targ, times)

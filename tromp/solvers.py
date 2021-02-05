@@ -132,6 +132,7 @@ class CollocationGeodesicSolver(BaseSolver):
     def collocation_defects(self, state_guesses):
         times = self.times  # remove this
         input_dim = 2
+        # input_dim = 4
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
         num_timesteps = times.shape[0]
         dt = times[-1] - times[0]
@@ -160,7 +161,7 @@ class CollocationGeodesicSolver(BaseSolver):
         print("defect")
         print(defect)
         return defect.flatten()
-        # return defect.flatten() /1000
+
     def collocation_defects_lagrange(
         self, state_guesses, pos_init, pos_end_targ, times
     ):

@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from tromp.visualisation.utils import create_grid
+from tromp.plotting.utils import create_grid
+
+cmap = cm.coolwarm
+cmap = cm.PRGn
+cmap = cm.PiYG
 
 
 def plot_contourf(fig, ax, x, y, z, label=""):
@@ -8,9 +12,9 @@ def plot_contourf(fig, ax, x, y, z, label=""):
         x,
         y,
         z.reshape(x.shape),
-        cmap=cm.coolwarm,
+        # cmap=cm.coolwarm,
+        cmap=cmap,
         levels=20,
-        linewidth=0,
         antialiased=False,
     )
     cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
@@ -45,11 +49,13 @@ def plot_jacobian_var(xx, yy, xy, cov_j):
             plot_contourf(fig, axs[i, j], xx, yy, cov_j[:, i, j])
     return fig, axs
 
+
 ############################################################
 # Methods for plotting from an instance of gpjax.models.svgp
 ############################################################
 
-def plot_svgp_mean_and_var(svgp,mean_label="Mean", var_label="Variance"):
+
+def plot_svgp_mean_and_var(svgp, mean_label="Mean", var_label="Variance"):
     Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
     fmean, fvar = svgp.predict_f(Xnew, full_cov=False)
     return plot_mean_and_var(

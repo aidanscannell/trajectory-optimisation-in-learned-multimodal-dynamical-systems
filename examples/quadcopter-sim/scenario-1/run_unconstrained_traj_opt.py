@@ -6,7 +6,7 @@ from jax import numpy as np
 from jax.config import config
 
 config.update("jax_enable_x64", True)
-config.update("jax_debug_nans", True)
+# config.update("jax_debug_nans", True)
 # from tromp.collocation import collocation
 from tromp.helpers import (init_straight_trajectory,
                            init_svgp_gpjax_from_mogpe_ckpt)
@@ -21,7 +21,15 @@ from tromp.solvers import CollocationGeodesicSolver
 #########################
 maxiter = 500  # max number of iterations
 maxiter = 10  # max number of iterations
+maxiter = 20  # max number of iterations
+# maxiter = 5  # max number of iterations
+# maxiter = 50  # max number of iterations
+# maxiter = 100  # max number of iterations
 num_col_points = 10  # number of collocation points to use in solver
+step_size = 0.01
+step_size = 0.1
+# step_size = 0.9
+states_tol = 0.2
 
 # Initialise solver times
 t_init = -1.0  # start time
@@ -42,9 +50,11 @@ state_guesses = init_straight_trajectory(
 # Configure metric tensor params
 ################################
 covariance_weight = 40.0
-# covariance_weight = 20.0
+covariance_weight = 20.0
 # covariance_weight = 1.0
+# covariance_weight = 0.5
 jitter_ode = 1e-6
+jitter_ode = 1e-4
 # jitter_ode = 1e-9
 jitter_metric = 1e-4
 
@@ -82,16 +92,24 @@ collocation_solver = CollocationGeodesicSolver(
 )
 
 
-plot_trajs_over_svgp(svgp, traj_init=state_guesses)
-plt.show()
+# plot_trajs_over_svgp(svgp, traj_init=state_guesses)
+# plt.show()
 
 t = time.time()
-geodesic_traj = collocation_solver.solve_trajectory_lagrange(
+geodesic_traj = collocation_solver.solve_trajectory_lagrange_jax(
     state_guesses=state_guesses,
     pos_init=pos_init,
     pos_end_targ=pos_end_targ,
     times=times,
+    step_size=step_size,
+    states_tol=states_tol,
 )
+# geodesic_traj = collocation_solver.solve_trajectory_lagrange(
+#     state_guesses=state_guesses,
+#     pos_init=pos_init,
+#     pos_end_targ=pos_end_targ,
+#     times=times,
+# )
 duration = time.time() - t
 print("Optimisation duration: ", duration)
 
@@ -100,7 +118,8 @@ save_img_dir = "./images"
 # plot_trajs_over_svgp(svgp, traj_init=state_guesses, traj_opt=geodesic_traj)
 plot_solver_trajs_over_svgp(collocation_solver)
 plt.savefig(
-    save_img_dir + "/init-and-opt-trajs-on-svgp-unconstrained.pdf", transparent=True
+    save_img_dir + "/init-and-opt-trajs-on-svgp-unconstrained.pdf",
+    transparent=True,
 )
 plt.show()
 traj_save_dir = "./saved_trajectories/opt_traj_unconstrained.npy"

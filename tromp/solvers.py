@@ -214,23 +214,28 @@ class CollocationGeodesicSolver(BaseSolver):
         print("Trace Metric Loss: ", trace_metric_sum)
 
         # print("Time Loss: ", times[-1])
-        # return norm_sum + self.covariance_weight * trace_metric_sum
+        return norm_sum + self.covariance_weight * trace_metric_sum
         # return trace_metric_sum
         # sum_of_squares = jnp.sum(state_guesses ** 2)
-        sum_of_squares = jnp.sum(pos_guesses ** 2)
+        # sum_of_squares = jnp.sum(pos_guesses ** 2)
         # return norm_sum
-        return sum_of_squares
+        # return sum_of_squares
 
-    def lagrange_objective(self, opt_vars, pos_init, pos_end_targ, times):
-        print("inside lagrange")
-
+    def sum_of_squares_objective(
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+    ):
+        print("inside sum of squares objective")
+        print(state_guesses.shape)
         if len(pos_init.shape) == 1:
-            input_dim = pos_init.shape[0]
-        opt_vars = opt_vars.reshape([-1, 2 * input_dim])
-        print("opt_vars")
-        print(opt_vars.shape)
-        num_states = times.shape[0]
-        print(num_states)
+            pos_dim = pos_init.shape[0]
+        state_guesses = state_guesses.reshape([-1, 2 * pos_dim])
+        pos_guesses = state_guesses[:, :pos_dim]
+        sum_of_squares = jnp.sum(pos_guesses ** 2)
+        return sum_of_squares
 
         state_guesses = opt_vars[:num_states, :]
         print("state_guesses")

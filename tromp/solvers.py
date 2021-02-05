@@ -268,6 +268,7 @@ class CollocationGeodesicSolver(BaseSolver):
         ub_defect=0.05,
         bounds: Bounds = None,
     ):
+        self.state_guesses = state_guesses
         method = "SLSQP"
         # hack as times needed in collocation_constraints_fn
         self.times = times  # TODO delete this!!
@@ -326,16 +327,18 @@ class CollocationGeodesicSolver(BaseSolver):
             args=objective_args,
         )
         print("Optimisation Result")
-        print(res)
-        # print(res.x.shape)
-        opt_vars = res.x
-        num_lagrange = lagrange_multipliers.shape[0]
-        opt_vars = opt_vars.reshape([num_lagrange + num_states, state_dim])
-        # state_opt = state_opt.reshape(states_shape)
-        state_opt = opt_vars[:num_states, :]
-        print("Optimised state trajectory")
-        print(state_opt)
-        return state_opt
+        print(self.optimisation_result)
+        opt_vars = self.optimisation_result.x
+
+        (
+            self.optimised_trajectory,
+            lagrange_multipliers,
+        ) = self.opt_vars_to_states_and_lagrange(
+            opt_vars, pos_init, pos_end_targ, num_states
+        )
+        print("Optimised Trajectory")
+        print(self.optimised_trajectory)
+        return self.optimised_trajectory
 
     def solve_trajectory(
         self,
@@ -347,6 +350,8 @@ class CollocationGeodesicSolver(BaseSolver):
         ub_defect=0.05,
         bounds: Bounds = None,
     ):
+        self.state_guesses = state_guesses
+
         method = "SLSQP"
         # hack as times needed in collocation_constraints_fn
         self.times = times  # TODO delete this!!
@@ -408,10 +413,11 @@ class CollocationGeodesicSolver(BaseSolver):
             args=objective_args,
         )
         print("Optimisation Result")
-        print(res)
-        # print(res.x.shape)
-        state_opt = res.x
-        state_opt = state_opt.reshape(states_shape)
-        print("Optimised state trajectory")
-        print(state_opt)
-        return state_opt
+        print(self.optimisation_result)
+        self.optimised_trajectory = self.optimisation_result.x.reshape(
+            states_shape
+        )
+        # state_opt = state_opt.reshape(states_shape)
+        print("Optimised Trajectory")
+        print(self.optimised_trajectory)
+        return self.optimised_trajectory

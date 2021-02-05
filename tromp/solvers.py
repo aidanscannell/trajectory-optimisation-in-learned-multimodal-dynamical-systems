@@ -313,7 +313,13 @@ class CollocationGeodesicSolver(BaseSolver):
         return lagrange_objective
 
     def solve_trajectory_lagrange_jax(
-            self, state_guesses, pos_init, pos_end_targ, times, step_size=0.1, states_tol=0.2
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+        step_size=0.1,
+        states_tol=0.2,
     ):
         self.state_guesses = state_guesses
         self.pos_init = pos_init
@@ -331,30 +337,22 @@ class CollocationGeodesicSolver(BaseSolver):
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
         lagrange_multipliers = jnp.zeros([num_defects * state_dim])
-        print("lagrange_multipliers")
-        print(lagrange_multipliers.shape)
         opt_vars = jnp.concatenate(
             [state_guesses_vars, lagrange_multipliers], axis=0
         )
-        print("opt_vars")
-        print(opt_vars.shape)
         opt_vars_vars = objax.StateVar(opt_vars)
 
         # Initialise lagrange objective fn with collocation defect constraints
         objective_args = (pos_init, pos_end_targ, times)
         jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars_vars})
-        jitted_lagrange_objective = objax.Jit(
-            self.lagrange_objective, jitted_fn_vars
-        )
+        # jitted_lagrange_objective = objax.Jit(
+        #     self.lagrange_objective, jitted_fn_vars
+        # )
 
-        def jac_fn(opt_vars, pos_init, pos_end_targ, times):
-            jac_fn_ = jax.jacfwd(self.lagrange_objective)
-            return jac_fn_(opt_vars, pos_init, pos_end_targ, times)
-
-        jitted_jac_fn = objax.Jit(jac_fn, jitted_fn_vars)
 
         def lagrange_objective(l):
-            return jitted_lagrange_objective(l, *objective_args)
+            return self.lagrange_objective(l, *objective_args)
+            # return jitted_lagrange_objective(l, *objective_args)
 
         L = jax.jacfwd(lagrange_objective)
         gradL = jax.jacfwd(L)
@@ -367,7 +365,7 @@ class CollocationGeodesicSolver(BaseSolver):
         states = self.opt_vars_to_states(
             opt_vars, pos_init, pos_end_targ, num_states
         )
-        print('tol', states_tol*step_size)
+        print("tol", states_tol * step_size)
         for epoch in range(self.maxiter):
             print("Epoch: ", epoch)
             opt_vars = jitted_optimiser_step(opt_vars)
@@ -377,33 +375,13 @@ class CollocationGeodesicSolver(BaseSolver):
             states_diff = jnp.sum(jnp.absolute(states_next - states))
             states = states_next
             print(states_diff)
-            if states_diff < states_tol*step_size:
+            if states_diff < states_tol * step_size:
                 break
 
-        # def training_loop(opt_vars):
-        #     for epoch in range(50):
-        #         print("Epoch: ", epoch)
-        #         # opt_vars = jitted_optimiser_step(opt_vars)
-        #         opt_vars = optimiser_step(opt_vars)
-        #     return opt_vars
-
-        # jitted_training_loop = objax.Jit(training_loop, jitted_fn_vars)
-        # opt_vars = jitted_training_loop(opt_vars)
-
-        # def minGD(opt_vars):
-        #     return opt_vars - step_size
-
-        # for epoch in range (self.maxiter):
-        #     domain = vfuncGD(domain)
-
-        # print("The minimum is {} the arg min is {}".format(minimum,argmin))
         self.optimisation_result = opt_vars
         print("Optimisation Result")
         print(self.optimisation_result)
         opt_vars = self.optimisation_result
-        # opt_vars= self.optimisation_result.x.reshape(
-        #     states_shape
-        # )
 
         (
             self.optimised_trajectory,
@@ -412,10 +390,6 @@ class CollocationGeodesicSolver(BaseSolver):
             opt_vars, pos_init, pos_end_targ, num_states
         )
 
-        # self.optimised_trajectory = self.opt_vars_to_states(
-        #     opt_vars, pos_init, pos_end_targ, states_shape[0]
-        # )
-        # state_opt = state_opt.reshape(states_shape)
         print("Optimised Trajectory")
         print(self.optimised_trajectory)
         return self.optimised_trajectory

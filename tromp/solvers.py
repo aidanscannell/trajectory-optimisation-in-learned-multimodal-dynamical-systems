@@ -285,11 +285,24 @@ class CollocationGeodesicSolver(BaseSolver):
         print(state_guesses.shape)
         lagrange_multipliers = opt_vars[num_states:, :]
         print(lagrange_multipliers.shape)
+    def opt_vars_to_states_and_lagrange(
+        self, opt_vars, pos_init, pos_end_targ, num_states
+    ):
+        if len(pos_init.shape) == 1:
+            pos_dim = pos_init.shape[0]
+            state_dim = 2 * pos_dim
+        state_guesses = opt_vars[: (num_states - 1) * state_dim - pos_dim]
+        state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
+        end_state = jnp.concatenate([pos_end_targ, jnp.array([0, 0])], axis=0)
+        state_guesses = jnp.concatenate([state_guesses, end_state], axis=0)
+        state_guesses = state_guesses.reshape([num_states, state_dim])
+
+        lagrange_multipliers = opt_vars[
+            (num_states - 1) * state_dim - pos_dim :
+        ]
         lagrange_multipliers = lagrange_multipliers.reshape(1, -1)
-        print(lagrange_multipliers.shape)
-        eq_constraints = self.collocation_defects(state_guesses)
-        print("eq constraint")
-        print(eq_constraints.shape)
+        return state_guesses, lagrange_multipliers
+
         eq_constraints = eq_constraints.reshape(-1, 1)
         # eq_constraints = eq_constraints.reshape(-1, 2*input_dim)
         print(eq_constraints.shape)

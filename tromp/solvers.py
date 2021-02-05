@@ -451,14 +451,17 @@ class CollocationGeodesicSolver(BaseSolver):
 
         # Initialise objective function
         objective_args = (pos_init, pos_end_targ, times)
-        # jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
         jitted_dummy_objective_fn = objax.Jit(
             self.dummy_objective_fn, jitted_fn_vars
         )
+        jitted_sum_of_squares_objective = objax.Jit(
+            self.sum_of_squares_objective, jitted_fn_vars
+        )
         jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
 
-        res = sp.optimize.minimize(
-            jitted_objective_fn,
+        self.optimisation_result = sp.optimize.minimize(
+            # jitted_objective_fn,
+            jitted_sum_of_squares_objective,
             # jitted_dummy_objective_fn,
             # self.dummy_objective_fn,
             state_guesses,

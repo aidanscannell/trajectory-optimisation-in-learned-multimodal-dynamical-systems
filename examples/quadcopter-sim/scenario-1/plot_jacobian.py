@@ -27,6 +27,6 @@ svgp = init_svgp_gpjax_from_mogpe_ckpt(
     config_file, ckpt_dir, data_file, expert_num=expert_num
 )
 
-# fig, axs = plot_svgp_jacobian_mean(svgp)
-fig, axs = plot_svgp_jacobian_var(svgp)
+fig, axs = plot_svgp_jacobian_mean(svgp)
+# fig, axs = plot_svgp_jacobian_var(svgp)
 plt.show()

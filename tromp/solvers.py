@@ -211,7 +211,6 @@ class CollocationGeodesicSolver(BaseSolver):
     def objective_fn(
         self,
         opt_vars,
-        # state_guesses,
         pos_init,
         pos_end_targ,
         times,
@@ -228,14 +227,6 @@ class CollocationGeodesicSolver(BaseSolver):
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
         pos_guesses = state_guesses[:, 0:input_dim]
 
-        # # Update the start/end positions back to their target values
-        # pos_guesses = jax.ops.index_update(
-        #     pos_guesses, jax.ops.index[0, :], pos_init
-        # )
-        # pos_guesses = jax.ops.index_update(
-        #     pos_guesses, jax.ops.index[-1, :], pos_end_targ
-        # )
-
         # Calculate Euclidean distance
         # norm = jnp.linalg.norm(pos_guesses, axis=-1, ord=-2)
         norm = jnp.linalg.norm(pos_guesses, axis=-1)
@@ -246,9 +237,6 @@ class CollocationGeodesicSolver(BaseSolver):
         print(norm_sum.shape)
         print("Norm Loss: ", norm_sum)
         # dist = sp.spatial.distance.cdist(pos_guesses[:,0],pos_guesses[:,1], metric="euclidean")
-        # print('dist')
-        # print(dist.shape)
-        # print("Dist Loss: ", dist)
 
         # Calculate sum of metric trace along trajectory
         metric_tensor = self.ode.metric_fn(pos_guesses)
@@ -256,13 +244,7 @@ class CollocationGeodesicSolver(BaseSolver):
         trace_metric_sum = jnp.sum(trace_metric)
         print("Trace Metric Loss: ", trace_metric_sum)
 
-        # print("Time Loss: ", times[-1])
         return norm_sum + self.covariance_weight * trace_metric_sum
-        # return trace_metric_sum
-        # sum_of_squares = jnp.sum(state_guesses ** 2)
-        # sum_of_squares = jnp.sum(pos_guesses ** 2)
-        # return norm_sum
-        # return sum_of_squares
 
     def sum_of_squares_objective(
         self,

@@ -271,30 +271,18 @@ class CollocationGeodesicSolver(BaseSolver):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
             state_dim = 2 * pos_dim
-        print('inside opt_vars_to_states')
-        print(pos_dim)
-        print(state_dim)
-        state_guesses = opt_vars[: num_states*state_dim - 2 * pos_dim]
-        print(state_guesses.shape)
+        state_guesses = opt_vars[: num_states * state_dim - 2 * pos_dim]
+        # Add start pos
         state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
 
+        # Split state_guesses and insert end pos
         state_guesses_before = state_guesses[:-pos_dim]
-        print("state_guesses_before")
-        print(state_guesses_before.shape)
         vel_end = state_guesses[-pos_dim:]
-        print("vel_end")
-        print(vel_end.shape)
         state_guesses = jnp.concatenate(
             [state_guesses_before, pos_end_targ], axis=0
         )
-        print("state guesses add end pos")
-        print(state_guesses.shape)
         state_guesses = jnp.concatenate([state_guesses, vel_end], axis=0)
-        print("state guesses edded end vel")
-        print(state_guesses.shape)
 
-        # end_state = jnp.concatenate([pos_end_targ, jnp.array([0, 0])], axis=0)
-        # state_guesses = jnp.concatenate([state_guesses, end_state], axis=0)
         state_guesses = state_guesses.reshape([num_states, state_dim])
         return state_guesses
 

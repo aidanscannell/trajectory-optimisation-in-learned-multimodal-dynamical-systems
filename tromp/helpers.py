@@ -158,3 +158,37 @@ def init_two_segment_straight_trajectory(
     )
     state_guesses = jnp.concatenate([state_guesses_1, state_guesses_2], 0)
     return state_guesses
+
+
+def init_start_end_pos_scipy_bounds(
+    opt_vars, pos_init, pos_end, pos_init_idx=0, pos_end_idx=-1, tol=0.02
+):
+    # disable bounds on all variables
+    lb = -jnp.ones([*opt_vars.shape]) * jnp.inf
+    ub = jnp.ones([*opt_vars.shape]) * jnp.inf
+
+    def update_bound_at_idx(lb, ub, pos_at_idx, idx, tol=0.02):
+        l_tol = 1 - tol
+        u_tol = 1 + tol
+        for i, pos in enumerate(pos_at_idx):
+            if pos < 0:
+                lb = jax.ops.index_update(
+                    lb, jax.ops.index[idx, i], pos * u_tol
+                )
+                ub = jax.ops.index_update(
+                    ub, jax.ops.index[idx, i], pos * l_tol
+                )
+            else:
+                lb = jax.ops.index_update(
+                    lb, jax.ops.index[idx, i], pos * l_tol
+                )
+                ub = jax.ops.index_update(
+                    ub, jax.ops.index[idx, i], pos * u_tol
+                )
+        return lb, ub
+
+    # add bounds for start and end positions
+    lb, ub = update_bound_at_idx(lb, ub, pos_init, idx=pos_init_idx, tol=tol)
+    lb, ub = update_bound_at_idx(lb, ub, pos_end, idx=pos_end_idx, tol=tol)
+    bounds = Bounds(lb=lb.flatten(), ub=ub.flatten())
+    return bounds

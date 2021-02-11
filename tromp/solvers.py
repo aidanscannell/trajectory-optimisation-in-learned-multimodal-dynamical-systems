@@ -242,11 +242,14 @@ class CollocationGeodesicSolver(GeodesicSolver):
         (
             state_guesses,
             lagrange_multipliers,
-        ) = self.opt_vars_to_states_and_lagrange(
+        ) = opt_vars_to_states_and_lagrange(
             opt_vars, pos_init, pos_end_targ, num_states=times.shape[0]
         )
 
-        eq_constraints = self.collocation_defects(opt_vars)
+        eq_constraints = hermite_simpson_collocation_constraints_fn(
+            state_at_knots=state_guesses, times=times, ode_fn=self.ode.ode_fn
+        )
+        # eq_constraints = self.collocation_defects(opt_vars)
         lagrange_term = jnp.sum(lagrange_multipliers * eq_constraints)
         objective = self.sum_of_squares_objective(
             opt_vars, pos_init, pos_end_targ, times

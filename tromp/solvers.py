@@ -75,29 +75,38 @@ def state_guesses_to_opt_vars(state_guesses):
     return state_guesses
 
 
-# def start_end_pos_bounds(state_guesses, pos_init, pos_end):
-#     lb = -jnp.ones([*state_guesses.shape]) * jnp.inf
-#     ub = jnp.ones([*state_guesses.shape]) * jnp.inf
+def opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states):
+    if len(pos_init.shape) == 1:
+        pos_dim = pos_init.shape[0]
+        state_dim = 2 * pos_dim
+    state_guesses = opt_vars[: num_states * state_dim - 2 * pos_dim]
+    # Add start pos
+    state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
 
-#     for idx, pos in enumerate(pos_init):
-#         if pos < 0:
-#             lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 1.02)
-#             ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 0.98)
-#         else:
-#             lb = jax.ops.index_update(lb, jax.ops.index[0, idx], pos * 0.98)
-#             ub = jax.ops.index_update(ub, jax.ops.index[0, idx], pos * 1.02)
+    # Split state_guesses and insert end pos
+    state_guesses_before = state_guesses[:-pos_dim]
+    vel_end = state_guesses[-pos_dim:]
+    state_guesses = jnp.concatenate(
+        [state_guesses_before, pos_end_targ], axis=0
+    )
+    state_guesses = jnp.concatenate([state_guesses, vel_end], axis=0)
 
-#     for idx, pos in enumerate(pos_end):
-#         if pos < 0:
-#             lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 1.02)
-#             ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 0.98)
-#         else:
-#             lb = jax.ops.index_update(lb, jax.ops.index[-1, idx], pos * 0.98)
-#             ub = jax.ops.index_update(ub, jax.ops.index[-1, idx], pos * 1.02)
+    state_guesses = state_guesses.reshape([num_states, state_dim])
+    return state_guesses
 
-#     bounds = Bounds(lb=lb.flatten(), ub=ub.flatten())
-#     return bounds
 
+def opt_vars_to_states_and_lagrange(
+    opt_vars, pos_init, pos_end_targ, num_states
+):
+    if len(pos_init.shape) == 1:
+        pos_dim = pos_init.shape[0]
+        state_dim = 2 * pos_dim
+    state_guesses = opt_vars_to_states(
+        opt_vars, pos_init, pos_end_targ, num_states
+    )
+
+    lagrange_multipliers = opt_vars[num_states * state_dim - 2 * pos_dim :]
+    return state_guesses, lagrange_multipliers
 
 class BaseSolver(objax.Module, abc.ABC):
     def __init__(self, ode: ODE):

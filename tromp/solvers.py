@@ -108,24 +108,25 @@ def opt_vars_to_states_and_lagrange(
     lagrange_multipliers = opt_vars[num_states * state_dim - 2 * pos_dim :]
     return state_guesses, lagrange_multipliers
 
-class BaseSolver(objax.Module, abc.ABC):
-    def __init__(self, ode: ODE):
-        self.ode = ode
-        # self.times = times
 
-    @abc.abstractmethod
-    def objective_fn(self, state):
-        raise NotImplementedError
+# class BaseSolver(objax.Module, abc.ABC):
+#     def __init__(self, ode: ODE):
+#         self.ode = ode
+#         # self.times = times
 
-    @abc.abstractmethod
-    def solve_trajectory(
-        self,
-        state_guesses,
-        pos_init,
-        pos_end_targ,
-        times,
-    ):
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # def objective_fn(self, state):
+    #     raise NotImplementedError
+
+    # @abc.abstractmethod
+    # def solve_trajectory(
+    #     self,
+    #     state_guesses,
+    #     pos_init,
+    #     pos_end_targ,
+    #     times,
+    # ):
+    #     raise NotImplementedError
 
 
 class GeodesicSolver(objax.Module, abc.ABC):
@@ -133,72 +134,7 @@ class GeodesicSolver(objax.Module, abc.ABC):
         self.ode = ode
         # self.times = times
 
-    @abc.abstractmethod
-    def objective_fn(self, state):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def solve_trajectory(
-        self,
-        state_guesses,
-        pos_init,
-        pos_end_targ,
-        times,
-    ):
-        raise NotImplementedError
-
-
-class CollocationGeodesicSolver(BaseSolver):
-    def __init__(
-        self,
-        ode,
-        # num_col_points: int = 10,
-        covariance_weight: jnp.float64 = 1.0,
-        maxiter: int = 100,
-    ):
-        super().__init__(ode)
-        self.covariance_weight = covariance_weight
-        self.maxiter = maxiter
-
-    def collocation_defects(self, opt_vars):
-        times = self.times  # remove this
-        # num_timesteps = times.shape[0]
-        num_states = times.shape[0]
-        state_guesses = self.opt_vars_to_states(
-            opt_vars, self.pos_init, self.pos_end_targ, num_states
-        )
-        # state_dim = 4
-        print("inside defects")
-        print(state_guesses.shape)
-        # state_guesses = state_guesses.reshape([-1, state_dim])
-        dt = times[-1] - times[0]
-        time_col = jnp.linspace(
-            times[0] + dt / 2, times[-1] - dt / 2, num_states - 1
-        )
-
-        def ode_fn(state):
-            return self.ode.ode_fn(times, state)
-
-        state_prime = jax.vmap(ode_fn)(state_guesses)
-        # state_prime = ode_fn(state_guesses)
-        state_ll = state_guesses[0:-1, :]
-        state_rr = state_guesses[1:, :]
-        state_prime_ll = state_prime[0:-1, :]
-        state_prime_rr = state_prime[1:, :]
-        state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
-            state_prime_ll - state_prime_rr
-        )
-        state_prime_col = jax.vmap(ode_fn)(state_col)
-        # state_prime_col = ode_fn(state_col)
-
-        defect = (state_ll - state_rr) + dt / 6 * (
-            state_prime_ll + 4 * state_prime_col + state_prime_rr
-        )
-        print("defect")
-        print(defect)
-        return defect.flatten()
-
-    def dummy_objective_fn(
+    def constant_objective_fn(
         self,
         state_guesses,
         pos_init,
@@ -284,6 +220,13 @@ class CollocationGeodesicSolver(BaseSolver):
 
     def opt_vars_to_states_and_lagrange(
         self, opt_vars, pos_init, pos_end_targ, num_states
+class CollocationGeodesicSolver(GeodesicSolver):
+    def __init__(
+        self,
+        ode,
+        # num_col_points: int = 10,
+        covariance_weight: jnp.float64 = 1.0,
+        maxiter: int = 100,
     ):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
@@ -473,7 +416,7 @@ class CollocationGeodesicSolver(BaseSolver):
         return self.optimised_trajectory
 
 
-class ScipyCollocationGeodesicSolver(BaseSolver):
+class ScipyCollocationGeodesicSolver(GeodesicSolver):
     def __init__(
         self,
         ode,

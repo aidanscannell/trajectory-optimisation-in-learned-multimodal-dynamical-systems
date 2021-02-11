@@ -15,6 +15,34 @@ from tromp.ode import ODE, GeodesicODE
 config.update("jax_enable_x64", True)
 
 
+def constant_objective_fn(
+    state_guesses,
+    pos_init,
+    pos_end_targ,
+    times,
+):
+    return 1.0
+
+
+def sum_of_squares_objective(
+    opt_vars,
+    pos_init,
+    pos_end_targ,
+    times,
+):
+    if len(pos_init.shape) == 1:
+        pos_dim = pos_init.shape[0]
+    num_states = times.shape[0]
+    state_guesses = opt_vars_to_states(
+        opt_vars, pos_init, pos_end_targ, num_states
+    )
+    pos_guesses = state_guesses[:, :pos_dim]
+    sum_of_squares = jnp.sum(pos_guesses ** 2)
+    # sum_of_squares = jnp.sum(state_guesses ** 2)
+    return sum_of_squares
+    # return sum_of_squares * 1000
+
+
 def state_guesses_to_opt_vars(state_guesses):
     # Flatten state guesses
     state_dim = state_guesses.shape[1]

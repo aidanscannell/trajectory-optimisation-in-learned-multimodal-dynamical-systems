@@ -435,6 +435,24 @@ class CollocationGeodesicSolver(BaseSolver):
         print(self.optimised_trajectory)
         return self.optimised_trajectory
 
+
+class ScipyCollocationGeodesicSolver(BaseSolver):
+    def __init__(
+        self,
+        ode,
+        covariance_weight: jnp.float64 = 1.0,
+        maxiter: int = 100,
+    ):
+        super().__init__(ode)
+        self.covariance_weight = covariance_weight
+        self.maxiter = maxiter
+
+
+    def objective_fn(self, state_guesses, pos_init, pos_end_targ, times):
+        return sum_of_squares_objective(
+            state_guesses, pos_init, pos_end_targ, times
+        )
+
     def solve_trajectory(
         self,
         state_guesses,
@@ -443,22 +461,105 @@ class CollocationGeodesicSolver(BaseSolver):
         times,
         lb_defect=-0.05,
         ub_defect=0.05,
-        bounds: Bounds = None,
+        method="SLSQP",
+        jit=True,
+        disp=True,
     ):
+        # store initial state trajectory for comaprison/plotting etc
         self.state_guesses = state_guesses
-        self.pos_init = pos_init
-        self.pos_end_targ = pos_end_targ
-        # hack as times needed in collocation_constraints_fn
-        self.times = times  # TODO delete this!!
 
-        method = "SLSQP"
+
+        def collocation_constraints_fn(opt_vars):
+            state_guesses = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states=times.shape[0])
+            return hermite_simpson_collocation_constraints_fn(
+                state_at_knots=state_guesses,
+                times=times,
+                ode_fn=self.ode.ode_fn,
+            )
+
+
+        (
+            self.optimised_trajectory,
+            self.optimisation_result,
+        ) = self.solve_trajectory_scipy_minimize(
+            state_guesses,
+            pos_init,
+            pos_end_targ,
+            times,
+            constraints_fn=collocation_constraints_fn,
+            objective_fn=self.objective_fn,
+            lb_defect=lb_defect,
+            ub_defect=ub_defect,
+            method=method,
+            jit=jit,
+            disp=disp,
+        )
+        return self.optimised_trajectory
+
+
+    def solve_trajectory_scipy_minimize(
+        self,
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+        constraints_fn=None,
+        objective_fn=None,
+        lb_defect=0.01,
+        ub_defect=0.01,
+        method="SLSQP",
+        jit=True,
+        disp=True,
+    ):
+        print("inside scipy solve traj")
+        print(state_guesses.shape)
+        states_shape = state_guesses.shape
+        state_guesses_vars = state_guesses_to_opt_vars(state_guesses)
+        print(state_guesses_vars.shape)
+
+        objective_args = (pos_init, pos_end_targ, times)
+        if jit:
+            jitted_fn_vars = objax.VarCollection(
+                {"state_guesses": objax.StateVar(state_guesses_vars)}
+            )
+
+            # Initialise objective function
+            objective_fn = objax.Jit(objective_fn, jitted_fn_vars)
+
+        # If constraints then initialise (and maybe jit)
+        if constraints_fn is not None:
+            if jit:
+                constraints_fn = objax.Jit(constraints_fn, jitted_fn_vars)
+            constraints = NonlinearConstraint(
+                constraints_fn,
+                lb_defect,
+                ub_defect,
+            )
+
+        optimisation_result = sp.optimize.minimize(
+            objective_fn,
+            state_guesses_vars,
+            method=method,
+            constraints=constraints,
+            options={"disp": disp, "maxiter": self.maxiter},
+            args=objective_args,
+        )
+        print("Optimisation Result:")
+        print(optimisation_result)
+
+        optimised_trajectory = opt_vars_to_states(
+            optimisation_result.x, pos_init, pos_end_targ, states_shape[0]
+        )
+        print("Optimised Trajectory:")
+        print(optimised_trajectory)
+        return optimised_trajectory, optimisation_result
 
         # bound the start and end (x,y) positions in the state vector
         # if bounds is None:
         #     # bounds = start_end_pos_bounds(
         #     #     state_guesses, pos_init, pos_end_targ
         #     # )
-        #     bounds = start_end_pos_bounds_lagrange(
+        #     bounds = init_start_end_pos_scipy_bounds(
         #         state_guesses,
         #         pos_init,
         #         pos_end_targ,
@@ -466,65 +567,3 @@ class CollocationGeodesicSolver(BaseSolver):
         #         pos_end_idx=-1,
         #         tol=0.02,
         #     )
-
-        states_shape = state_guesses.shape
-        state_guesses_vars = state_guesses_to_opt_vars(state_guesses)
-        # state_guesses = state_guesses.reshape(-1)
-        # state_guesses_StateVar = objax.StateVar(state_guesses_vars)
-
-        # Initialise collocation defects as constraints
-        jitted_fn_vars = objax.VarCollection(
-            {"state_guesses": objax.StateVar(state_guesses_vars)}
-        )
-        jitted_collocation_defects = objax.Jit(
-            self.collocation_defects, jitted_fn_vars
-        )
-        jitted_collocation_constraints = NonlinearConstraint(
-            jitted_collocation_defects,
-            lb_defect,
-            ub_defect,
-        )
-        collocation_constraints = NonlinearConstraint(
-            self.collocation_defects,
-            lb_defect,
-            ub_defect,
-        )
-
-        # Initialise objective function
-        objective_args = (pos_init, pos_end_targ, times)
-        jitted_dummy_objective_fn = objax.Jit(
-            self.dummy_objective_fn, jitted_fn_vars
-        )
-        jitted_sum_of_squares_objective = objax.Jit(
-            self.sum_of_squares_objective, jitted_fn_vars
-        )
-        jitted_objective_fn = objax.Jit(self.objective_fn, jitted_fn_vars)
-
-        self.optimisation_result = sp.optimize.minimize(
-            # jitted_objective_fn,
-            jitted_sum_of_squares_objective,
-            # jitted_dummy_objective_fn,
-            # self.dummy_objective_fn,
-            # state_guesses,
-            state_guesses_vars,
-            method=method,
-            # bounds=bounds,
-            constraints=jitted_collocation_constraints,
-            # constraints=collocation_constraints,
-            options={"disp": True, "maxiter": self.maxiter},
-            args=objective_args,
-        )
-        print("Optimisation Result")
-        print(self.optimisation_result)
-        opt_vars = self.optimisation_result.x
-        # opt_vars= self.optimisation_result.x.reshape(
-        #     states_shape
-        # )
-
-        self.optimised_trajectory = self.opt_vars_to_states(
-            opt_vars, pos_init, pos_end_targ, states_shape[0]
-        )
-        # state_opt = state_opt.reshape(states_shape)
-        print("Optimised Trajectory")
-        print(self.optimised_trajectory)
-        return self.optimised_trajectory

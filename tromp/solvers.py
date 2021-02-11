@@ -252,7 +252,8 @@ class CollocationGeodesicSolver(GeodesicSolver):
         objective = self.sum_of_squares_objective(
             opt_vars, pos_init, pos_end_targ, times
         )
-        lagrange_objective = objective - lagrange_term
+        # lagrange_objective = objective - lagrange_term
+        lagrange_objective = -lagrange_term
         return lagrange_objective
 
     def solve_trajectory_lagrange_jax(

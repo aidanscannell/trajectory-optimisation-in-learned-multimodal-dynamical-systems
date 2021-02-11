@@ -263,11 +263,10 @@ class CollocationGeodesicSolver(GeodesicSolver):
         step_size=0.1,
         states_tol=0.2,
     ):
+        """
+        Optimiser uses Newton's method
+        """
         self.state_guesses = state_guesses
-        self.pos_init = pos_init
-        self.pos_end_targ = pos_end_targ
-        # hack as times needed in collocation_constraints_fn
-        self.times = times  # TODO delete this!!
 
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
@@ -278,58 +277,82 @@ class CollocationGeodesicSolver(GeodesicSolver):
 
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
-        lagrange_multipliers = jnp.zeros([num_defects * state_dim])
+        lagrange_multipliers = jnp.ones([num_defects * state_dim])
         opt_vars = jnp.concatenate(
             [state_guesses_vars, lagrange_multipliers], axis=0
         )
-        opt_vars_vars = objax.StateVar(opt_vars)
+        # opt_vars_vars = objax.StateVar(opt_vars)
+        opt_vars = objax.TrainVar(opt_vars)
+        opt_vars_ref = objax.TrainRef(opt_vars)
 
         # Initialise lagrange objective fn with collocation defect constraints
         objective_args = (pos_init, pos_end_targ, times)
-        jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars_vars})
+        jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars})
         # jitted_lagrange_objective = objax.Jit(
         #     self.lagrange_objective, jitted_fn_vars
         # )
-
 
         def lagrange_objective(l):
             return self.lagrange_objective(l, *objective_args)
             # return jitted_lagrange_objective(l, *objective_args)
 
-        L = jax.jacfwd(lagrange_objective)
-        gradL = jax.jacfwd(L)
+        jacobian_lagrange_objective = jax.jacfwd(lagrange_objective)
+        hessian_lagrange_objective = jax.jacfwd(jacobian_lagrange_objective)
 
-        def optimiser_step(l):
-            return l - step_size * jnp.linalg.inv(gradL(l)) @ L(l)
+        def optimiser_step(opt_vars):
+            jacobian_loss = jacobian_lagrange_objective(opt_vars)
+            loss = lagrange_objective(opt_vars)
+            updated_opt_vars = (
+                opt_vars
+                - step_size
+                * jnp.linalg.inv(hessian_lagrange_objective(opt_vars))
+                @ jacobian_loss
+            )
+            return updated_opt_vars, loss
 
         jitted_optimiser_step = objax.Jit(optimiser_step, jitted_fn_vars)
 
-        states = self.opt_vars_to_states(
-            opt_vars, pos_init, pos_end_targ, num_states
+        states = opt_vars_to_states(
+            opt_vars_ref.value, pos_init, pos_end_targ, num_states
         )
-        print("tol", states_tol * step_size)
-        for epoch in range(self.maxiter):
-            print("Epoch: ", epoch)
-            opt_vars = jitted_optimiser_step(opt_vars)
-            states_next = self.opt_vars_to_states(
-                opt_vars, pos_init, pos_end_targ, num_states
+
+        print("tol", states_tol / step_size)
+        self.loss_at_steps = []
+        self.opt_vars_at_steps = []
+        for step in range(self.maxiter):
+            t = time.time()
+            # opt_vars, loss = jitted_optimiser_step(opt_vars)
+            # opt_vars, loss = jitted_optimiser_step(opt_vars_ref)
+            opt_vars_ref.value, loss = jitted_optimiser_step(
+                opt_vars_ref.value
+            )
+            self.loss_at_steps.append(loss)
+            self.opt_vars_at_steps.append(opt_vars_ref.value)
+            states_next = opt_vars_to_states(
+                opt_vars_ref.value, pos_init, pos_end_targ, num_states
             )
             states_diff = jnp.sum(jnp.absolute(states_next - states))
             states = states_next
-            print(states_diff)
-            if states_diff < states_tol * step_size:
-                break
+            duration = time.time() - t
+            print("Loss @ step {} is {}".format(step, loss))
+            # print("Step {}".format(step))
+            print("Duration: ", duration)
+            # print(states_diff)
+            # if states_diff < states_tol / step_size:
+            #     break
+        plt.plot(jnp.arange(len(self.loss_at_steps)), self.loss_at_steps)
+        plt.show()
 
-        self.optimisation_result = opt_vars
+        min_loss_idx = np.nanargmin(np.array(self.loss_at_steps))
+        self.optimisation_result = self.opt_vars_at_steps[min_loss_idx]
         print("Optimisation Result")
         print(self.optimisation_result)
-        opt_vars = self.optimisation_result
 
         (
             self.optimised_trajectory,
             lagrange_multipliers,
-        ) = self.opt_vars_to_states_and_lagrange(
-            opt_vars, pos_init, pos_end_targ, num_states
+        ) = opt_vars_to_states_and_lagrange(
+            self.optimisation_result, pos_init, pos_end_targ, num_states
         )
 
         print("Optimised Trajectory")
@@ -362,9 +385,6 @@ class CollocationGeodesicSolver(GeodesicSolver):
 
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
-        # lagrange_multipliers = 0.01 * jnp.ones([num_defects * state_dim])
-        # lagrange_multipliers = 1./5000.0*jnp.ones([num_defects * state_dim])
-        # lagrange_multipliers = 1.0 / 5000.0 * jnp.ones([num_defects * pos_dim])
         lagrange_multipliers = jnp.zeros([num_defects * state_dim])
         print("lagrange_multipliers")
         print(lagrange_multipliers.shape)
@@ -381,15 +401,8 @@ class CollocationGeodesicSolver(GeodesicSolver):
         jitted_lagrange_objective = objax.Jit(
             self.lagrange_objective, jitted_fn_vars
         )
-        # jitted_objective = objax.Jit(self.objective_fn, jitted_fn_vars)
-        # lag = self.lagrange_objective(opt_vars, pos_init, pos_end_targ, times)
-        # print('after lag fun call')
-        # print(lag.shape)
-        def jac_fn(opt_vars, pos_init, pos_end_targ, times):
-            jac_fn_ = jax.jacfwd(self.lagrange_objective)
-            return jac_fn_(opt_vars, pos_init, pos_end_targ, times)
 
-        jitted_jac_fn = objax.Jit(jac_fn, jitted_fn_vars)
+        def lagrange_objective(l):
 
         self.optimisation_result = sp.optimize.minimize(
             # self.lagrange_objective,

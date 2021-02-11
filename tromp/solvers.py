@@ -237,6 +237,10 @@ class CollocationGeodesicSolver(GeodesicSolver):
 
         lagrange_multipliers = opt_vars[num_states * state_dim - 2 * pos_dim :]
         return state_guesses, lagrange_multipliers
+    def objective_fn(self, state_guesses, pos_init, pos_end_targ, times):
+        return sum_of_squares_objective(
+            state_guesses, pos_init, pos_end_targ, times
+        )
 
     def lagrange_objective(self, opt_vars, pos_init, pos_end_targ, times):
         (

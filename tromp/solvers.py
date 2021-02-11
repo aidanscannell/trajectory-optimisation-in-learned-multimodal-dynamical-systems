@@ -1,13 +1,18 @@
 import abc
+import time
 
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
 import objax
 import scipy as sp
 from bunch import Bunch
 from jax.config import config
 from scipy.optimize import Bounds, NonlinearConstraint
 
+from tromp.constraints import hermite_simpson_collocation_constraints_fn
+# from tromp.helpers import init_start_end_pos_scipy_bounds
 from tromp.metric_tensors import RiemannianMetricTensor
 # from tromp.ode import geodesic_ode
 from tromp.ode import ODE, GeodesicODE
@@ -143,7 +148,7 @@ class GeodesicSolver(objax.Module, abc.ABC):
     ):
         return 1.0
 
-    def objective_fn(
+    def metric_objective_fn(
         self,
         opt_vars,
         pos_init,
@@ -154,7 +159,7 @@ class GeodesicSolver(objax.Module, abc.ABC):
         if len(pos_init.shape) == 1:
             input_dim = pos_init.shape[0]
         num_states = times.shape[0]
-        state_guesses = self.opt_vars_to_states(
+        state_guesses = opt_vars_to_states(
             opt_vars, pos_init, pos_end_targ, num_states
         )
         print(state_guesses.shape)
@@ -191,7 +196,7 @@ class GeodesicSolver(objax.Module, abc.ABC):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
         num_states = times.shape[0]
-        state_guesses = self.opt_vars_to_states(
+        state_guesses = opt_vars_to_states(
             opt_vars, pos_init, pos_end_targ, num_states
         )
         pos_guesses = state_guesses[:, :pos_dim]
@@ -199,27 +204,21 @@ class GeodesicSolver(objax.Module, abc.ABC):
         # sum_of_squares = jnp.sum(state_guesses ** 2)
         return sum_of_squares * 1000
 
-    def opt_vars_to_states(self, opt_vars, pos_init, pos_end_targ, num_states):
-        if len(pos_init.shape) == 1:
-            pos_dim = pos_init.shape[0]
-            state_dim = 2 * pos_dim
-        state_guesses = opt_vars[: num_states * state_dim - 2 * pos_dim]
-        # Add start pos
-        state_guesses = jnp.concatenate([pos_init, state_guesses], axis=0)
+    # @abc.abstractmethod
+    # def objective_fn(self, state):
+    #     raise NotImplementedError
 
-        # Split state_guesses and insert end pos
-        state_guesses_before = state_guesses[:-pos_dim]
-        vel_end = state_guesses[-pos_dim:]
-        state_guesses = jnp.concatenate(
-            [state_guesses_before, pos_end_targ], axis=0
-        )
-        state_guesses = jnp.concatenate([state_guesses, vel_end], axis=0)
+    # @abc.abstractmethod
+    # def solve_trajectory(
+    #     self,
+    #     state_guesses,
+    #     pos_init,
+    #     pos_end_targ,
+    #     times,
+    # ):
+    #     raise NotImplementedError
 
-        state_guesses = state_guesses.reshape([num_states, state_dim])
-        return state_guesses
 
-    def opt_vars_to_states_and_lagrange(
-        self, opt_vars, pos_init, pos_end_targ, num_states
 class CollocationGeodesicSolver(GeodesicSolver):
     def __init__(
         self,
@@ -228,15 +227,10 @@ class CollocationGeodesicSolver(GeodesicSolver):
         covariance_weight: jnp.float64 = 1.0,
         maxiter: int = 100,
     ):
-        if len(pos_init.shape) == 1:
-            pos_dim = pos_init.shape[0]
-            state_dim = 2 * pos_dim
-        state_guesses = self.opt_vars_to_states(
-            opt_vars, pos_init, pos_end_targ, num_states
-        )
+        super().__init__(ode)
+        self.covariance_weight = covariance_weight
+        self.maxiter = maxiter
 
-        lagrange_multipliers = opt_vars[num_states * state_dim - 2 * pos_dim :]
-        return state_guesses, lagrange_multipliers
     def objective_fn(self, state_guesses, pos_init, pos_end_targ, times):
         return sum_of_squares_objective(
             state_guesses, pos_init, pos_end_targ, times

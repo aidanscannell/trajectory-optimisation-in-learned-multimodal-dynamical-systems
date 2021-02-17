@@ -13,7 +13,8 @@ from tromp.metric_tensors import SVGPMetricTensor
 from tromp.ode import GeodesicODE
 from tromp.plotting.solver import plot_solver_trajs_over_svgp
 from tromp.plotting.trajectories import plot_trajs_over_svgp
-from tromp.solvers import CollocationGeodesicSolver
+# from tromp.solvers import CollocationGeodesicSolver
+from tromp.solvers import ScipyCollocationGeodesicSolver
 
 #########################
 # Configure solver params
@@ -26,8 +27,8 @@ lb_defect = -0.08
 ub_defect = 0.08
 # lb_defect = -0.09
 # ub_defect = 0.09
-lb_defect = -0.01  # works with cov=40 jitter=1e-4
-ub_defect = 0.01
+# lb_defect = -0.01  # works with cov=40 jitter=1e-4
+# ub_defect = 0.01
 # lb_defect = -0.5  # works with cov=40 jitter=1e-4
 # ub_defect = 0.5
 # lb_defect = -0.006
@@ -80,7 +81,7 @@ state_guesses = init_straight_trajectory(
 covariance_weight = 40.0
 # covariance_weight = 20.0
 # covariance_weight = 10.0
-covariance_weight = 30.0
+# covariance_weight = 30.0
 # covariance_weight = 3.0
 # covariance_weight = 7.0
 # covariance_weight = 0.0
@@ -125,7 +126,8 @@ metric_tensor = SVGPMetricTensor(
 )
 ode = GeodesicODE(metric_tensor=metric_tensor, jitter=jitter_ode)
 
-collocation_solver = CollocationGeodesicSolver(
+# collocation_solver = CollocationGeodesicSolver(
+collocation_solver = ScipyCollocationGeodesicSolver(
     ode=ode,
     covariance_weight=covariance_weight,
     maxiter=maxiter,
@@ -137,14 +139,6 @@ collocation_solver = CollocationGeodesicSolver(
 # plt.show()
 
 t = time.time()
-# geodesic_traj = collocation_solver.solve_trajectory_lagrange(
-#     state_guesses=state_guesses,
-#     pos_init=pos_init,
-#     pos_end_targ=pos_end_targ,
-#     times=times,
-#     lb_defect=lb_defect,
-#     ub_defect=ub_defect,
-# )
 geodesic_traj = collocation_solver.solve_trajectory(
     state_guesses=state_guesses,
     pos_init=pos_init,
@@ -152,6 +146,7 @@ geodesic_traj = collocation_solver.solve_trajectory(
     times=times,
     lb_defect=lb_defect,
     ub_defect=ub_defect,
+    # jit=False
 )
 duration = time.time() - t
 print("Optimisation duration: ", duration)
@@ -164,5 +159,5 @@ plt.savefig(
     save_img_dir + "/init-and-opt-trajs-on-svgp-new.pdf", transparent=True
 )
 plt.show()
-traj_save_dir = "./saved_trajectories/opt_traj.npy"
+traj_save_dir = "./saved-trajectories/opt_traj.npy"
 np.save(traj_save_dir, geodesic_traj)

@@ -28,7 +28,8 @@ def plot_tricontourf(fig, ax, x, y, z, label=""):
 
 
 def plot_mean_and_var(xx, yy, mu, var, llabel="mean", rlabel="variance"):
-    fig, axs = plt.subplots(1, 2, figsize=(18, 4))
+    # fig, axs = plt.subplots(1, 2, figsize=(18, 4))
+    fig, axs = plt.subplots(1, 2, figsize=(12, 4))
     plot_contourf(fig, axs[0], xx, yy, mu, label=llabel)
     plot_contourf(fig, axs[1], xx, yy, var, label=rlabel)
     return fig, axs
@@ -58,9 +59,7 @@ def plot_jacobian_var(xx, yy, xy, cov_j):
 def plot_svgp_mean_and_var(svgp, mean_label="Mean", var_label="Variance"):
     Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
     fmean, fvar = svgp.predict_f(Xnew, full_cov=False)
-    return plot_mean_and_var(
-        xx, yy, fmean, fvar, llabel=mean_label, rlabel=var_label
-    )
+    return plot_mean_and_var(xx, yy, fmean, fvar, llabel=mean_label, rlabel=var_label)
 
 
 def plot_svgp_jacobian_mean(svgp):

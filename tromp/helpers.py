@@ -9,34 +9,6 @@ from gpjax.models import SVGP
 
 from mogpe.training.utils import load_model_from_config_and_checkpoint
 
-# def mosvgpe_checkpoint_to_numpy(
-#     config_file, ckpt_dir, data_file, expert_num=1
-# ):
-#     # load data set
-#     data = np.load(data_file)
-#     X = data["x"]
-
-#     # configure mogpe model from checkpoint
-#     model = load_model_from_config_and_checkpoint(config_file, ckpt_dir, X=X)
-
-#     # select the gating function to use
-#     gating_func = model.gating_network.gating_function_list[expert_num]
-#     mean_function = 0.0  # mogpe gating functions have zero mean function
-#     whiten = gating_func.whiten
-
-#     # sparse GP parameters
-#     q_mu = gating_func.q_mu.numpy()
-#     q_sqrt = gating_func.q_sqrt.numpy()
-#     inducing_variable = (
-#         gating_func.inducing_variable.inducing_variable.Z.numpy()
-#     )
-
-#     # kerenl parameters
-#     variance = gating_func.kernel.kernels[0].variance.numpy()
-#     lengthscales = gating_func.kernel.kernels[0].lengthscales.numpy()
-#     kernel = RBF(variance=variance, lengthscales=lengthscales)
-#     return kernel, inducing_variable, mean_function, q_mu, q_sqrt, whiten
-
 
 def init_svgp_gpjax_from_mogpe_ckpt(
     config_file, ckpt_dir, data_file, expert_num=1
@@ -63,7 +35,9 @@ def init_svgp_gpjax_from_mogpe_ckpt(
 
     # select the gating function to use
     gating_func = model.gating_network.gating_function_list[expert_num - 1]
-    mean_function = gpjax.mean_functions.Zero()  # mogpe gating functions have zero mean function
+    mean_function = (
+        gpjax.mean_functions.Zero()
+    )  # mogpe gating functions have zero mean function
     # mean_function = 0.0  # mogpe gating functions have zero mean function
     whiten = gating_func.whiten
 
@@ -71,9 +45,7 @@ def init_svgp_gpjax_from_mogpe_ckpt(
     q_diag = gating_func.q_diag
     q_mu = gating_func.q_mu.numpy()
     q_sqrt = gating_func.q_sqrt.numpy()
-    inducing_variable = (
-        gating_func.inducing_variable.inducing_variable.Z.numpy()
-    )
+    inducing_variable = gating_func.inducing_variable.inducing_variable.Z.numpy()
 
     # kerenl parameters
     variance = gating_func.kernel.kernels[0].variance.numpy()
@@ -172,19 +144,11 @@ def init_start_end_pos_scipy_bounds(
         u_tol = 1 + tol
         for i, pos in enumerate(pos_at_idx):
             if pos < 0:
-                lb = jax.ops.index_update(
-                    lb, jax.ops.index[idx, i], pos * u_tol
-                )
-                ub = jax.ops.index_update(
-                    ub, jax.ops.index[idx, i], pos * l_tol
-                )
+                lb = jax.ops.index_update(lb, jax.ops.index[idx, i], pos * u_tol)
+                ub = jax.ops.index_update(ub, jax.ops.index[idx, i], pos * l_tol)
             else:
-                lb = jax.ops.index_update(
-                    lb, jax.ops.index[idx, i], pos * l_tol
-                )
-                ub = jax.ops.index_update(
-                    ub, jax.ops.index[idx, i], pos * u_tol
-                )
+                lb = jax.ops.index_update(lb, jax.ops.index[idx, i], pos * l_tol)
+                ub = jax.ops.index_update(ub, jax.ops.index[idx, i], pos * u_tol)
         return lb, ub
 
     # add bounds for start and end positions

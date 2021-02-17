@@ -1,5 +1,6 @@
 import abc
 import time
+import pickle
 
 import jax
 import jax.numpy as jnp
@@ -138,6 +139,12 @@ class GeodesicSolver(objax.Module, abc.ABC):
     def __init__(self, ode: GeodesicODE):
         self.ode = ode
         # self.times = times
+
+    def save(self, filename=None):
+        if filename is None:
+            filename = "./GeodesicSolver.pickle"
+        with open(filename, "wb") as path:
+            pickle.dump(self, path, -1)
 
     def constant_objective_fn(
         self,

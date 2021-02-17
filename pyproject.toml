@@ -25,6 +25,7 @@ cloudpickle = "1.3.0"
 
 mogpe = {path = "../mogpe", develop=true} # my Mixtures of GP Experts library
 gpjax = {path = "../GPJax", develop=true} # my Jax GP library
+simenvs = {path = "../sim-envs", develop=true} # my simulation environment library
 # gpjax = {git = "https://github.com/aidanscannell/GPJax", brach = "master"} # my Jax GP library
 
 [tool.poetry.dev-dependencies]

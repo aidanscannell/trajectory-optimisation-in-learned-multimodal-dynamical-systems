@@ -13,8 +13,10 @@ from jax.config import config
 from scipy.optimize import Bounds, NonlinearConstraint
 
 from tromp.constraints import hermite_simpson_collocation_constraints_fn
+
 # from tromp.helpers import init_start_end_pos_scipy_bounds
 from tromp.metric_tensors import RiemannianMetricTensor
+
 # from tromp.ode import geodesic_ode
 from tromp.ode import ODE, GeodesicODE
 
@@ -39,9 +41,7 @@ def sum_of_squares_objective(
     if len(pos_init.shape) == 1:
         pos_dim = pos_init.shape[0]
     num_states = times.shape[0]
-    state_guesses = opt_vars_to_states(
-        opt_vars, pos_init, pos_end_targ, num_states
-    )
+    state_guesses = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states)
     pos_guesses = state_guesses[:, :pos_dim]
     sum_of_squares = jnp.sum(pos_guesses ** 2)
     # sum_of_squares = jnp.sum(state_guesses ** 2)
@@ -73,9 +73,7 @@ def state_guesses_to_opt_vars(state_guesses):
     state_guesses_end = state_guesses[-state_dim + pos_dim :]
     print("state_guesses_end")
     print(state_guesses_end.shape)
-    state_guesses = jnp.concatenate(
-        [state_guesses_before, state_guesses_end], axis=0
-    )
+    state_guesses = jnp.concatenate([state_guesses_before, state_guesses_end], axis=0)
     print("state guesses removed end pos")
     print(state_guesses.shape)
     return state_guesses
@@ -92,24 +90,18 @@ def opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states):
     # Split state_guesses and insert end pos
     state_guesses_before = state_guesses[:-pos_dim]
     vel_end = state_guesses[-pos_dim:]
-    state_guesses = jnp.concatenate(
-        [state_guesses_before, pos_end_targ], axis=0
-    )
+    state_guesses = jnp.concatenate([state_guesses_before, pos_end_targ], axis=0)
     state_guesses = jnp.concatenate([state_guesses, vel_end], axis=0)
 
     state_guesses = state_guesses.reshape([num_states, state_dim])
     return state_guesses
 
 
-def opt_vars_to_states_and_lagrange(
-    opt_vars, pos_init, pos_end_targ, num_states
-):
+def opt_vars_to_states_and_lagrange(opt_vars, pos_init, pos_end_targ, num_states):
     if len(pos_init.shape) == 1:
         pos_dim = pos_init.shape[0]
         state_dim = 2 * pos_dim
-    state_guesses = opt_vars_to_states(
-        opt_vars, pos_init, pos_end_targ, num_states
-    )
+    state_guesses = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states)
 
     lagrange_multipliers = opt_vars[num_states * state_dim - 2 * pos_dim :]
     return state_guesses, lagrange_multipliers
@@ -166,9 +158,7 @@ class GeodesicSolver(objax.Module, abc.ABC):
         if len(pos_init.shape) == 1:
             input_dim = pos_init.shape[0]
         num_states = times.shape[0]
-        state_guesses = opt_vars_to_states(
-            opt_vars, pos_init, pos_end_targ, num_states
-        )
+        state_guesses = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states)
         print(state_guesses.shape)
 
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
@@ -203,9 +193,7 @@ class GeodesicSolver(objax.Module, abc.ABC):
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
         num_states = times.shape[0]
-        state_guesses = opt_vars_to_states(
-            opt_vars, pos_init, pos_end_targ, num_states
-        )
+        state_guesses = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states)
         pos_guesses = state_guesses[:, :pos_dim]
         sum_of_squares = jnp.sum(pos_guesses ** 2)
         # sum_of_squares = jnp.sum(state_guesses ** 2)
@@ -239,26 +227,46 @@ class CollocationGeodesicSolver(GeodesicSolver):
         self.maxiter = maxiter
 
     def objective_fn(self, state_guesses, pos_init, pos_end_targ, times):
-        return sum_of_squares_objective(
-            state_guesses, pos_init, pos_end_targ, times
-        )
+        return sum_of_squares_objective(state_guesses, pos_init, pos_end_targ, times)
 
     def lagrange_objective(self, opt_vars, pos_init, pos_end_targ, times):
-        (
-            state_guesses,
-            lagrange_multipliers,
-        ) = opt_vars_to_states_and_lagrange(
+        (state_guesses, lagrange_multipliers,) = opt_vars_to_states_and_lagrange(
             opt_vars, pos_init, pos_end_targ, num_states=times.shape[0]
         )
 
         eq_constraints = hermite_simpson_collocation_constraints_fn(
             state_at_knots=state_guesses, times=times, ode_fn=self.ode.ode_fn
         )
-        # eq_constraints = self.collocation_defects(opt_vars)
+        print("eq")
+        print(eq_constraints.shape)
         lagrange_term = jnp.sum(lagrange_multipliers * eq_constraints)
-        objective = self.sum_of_squares_objective(
-            opt_vars, pos_init, pos_end_targ, times
-        )
+
+        # state_guesses_vars = state_guesses_to_opt_vars(state_guesses)
+        # print(state_guesses_vars.shape)
+        # def eq_constraints_fn(state_guesses_vars):
+        #     state_at_knots = opt_vars_to_states(
+        #         state_guesses_vars, pos_init, pos_end_targ, num_states=times.shape[0]
+        #     )
+        #     # state_at_knots = state_at_knots.reshape(state_guesses_shape)
+        #     return hermite_simpson_collocation_constraints_fn(
+        #         state_at_knots, times=times, ode_fn=self.ode.ode_fn
+        #     )
+
+        # jacobian_eq_constraints_fn = jax.jacfwd(eq_constraints_fn)
+        # jacobian_eq_constraints = jacobian_eq_constraints_fn(state_guesses_vars)
+        # print("jac consts")
+        # print(jacobian_eq_constraints.shape)
+        # print(lagrange_multipliers.shape)
+        # print(lagrange_multipliers.shape)
+        # # lagrange_multipliers = lagrange_multipliers.reshape([-1, 1])
+        # # lagrange_term = jnp.sum(lagrange_multipliers * jacobian_eq_constraints, axis=0)
+        # lagrange_term = jnp.sum(lagrange_multipliers * jacobian_eq_constraints)
+        # print("lag term")
+        # print(lagrange_term.shape)
+
+        # objective = self.sum_of_squares_objective(
+        #     opt_vars, pos_init, pos_end_targ, times
+        # )
         # lagrange_objective = objective - lagrange_term
         lagrange_objective = -lagrange_term
         return lagrange_objective
@@ -287,9 +295,7 @@ class CollocationGeodesicSolver(GeodesicSolver):
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
         lagrange_multipliers = jnp.ones([num_defects * state_dim])
-        opt_vars = jnp.concatenate(
-            [state_guesses_vars, lagrange_multipliers], axis=0
-        )
+        opt_vars = jnp.concatenate([state_guesses_vars, lagrange_multipliers], axis=0)
         # opt_vars_vars = objax.StateVar(opt_vars)
         opt_vars = objax.TrainVar(opt_vars)
         opt_vars_ref = objax.TrainRef(opt_vars)
@@ -332,9 +338,7 @@ class CollocationGeodesicSolver(GeodesicSolver):
             t = time.time()
             # opt_vars, loss = jitted_optimiser_step(opt_vars)
             # opt_vars, loss = jitted_optimiser_step(opt_vars_ref)
-            opt_vars_ref.value, loss = jitted_optimiser_step(
-                opt_vars_ref.value
-            )
+            opt_vars_ref.value, loss = jitted_optimiser_step(opt_vars_ref.value)
             self.loss_at_steps.append(loss)
             self.opt_vars_at_steps.append(opt_vars_ref.value)
             states_next = opt_vars_to_states(
@@ -449,11 +453,8 @@ class ScipyCollocationGeodesicSolver(GeodesicSolver):
         self.covariance_weight = covariance_weight
         self.maxiter = maxiter
 
-
     def objective_fn(self, state_guesses, pos_init, pos_end_targ, times):
-        return sum_of_squares_objective(
-            state_guesses, pos_init, pos_end_targ, times
-        )
+        return sum_of_squares_objective(state_guesses, pos_init, pos_end_targ, times)
 
     def solve_trajectory(
         self,
@@ -470,15 +471,15 @@ class ScipyCollocationGeodesicSolver(GeodesicSolver):
         # store initial state trajectory for comaprison/plotting etc
         self.state_guesses = state_guesses
 
-
         def collocation_constraints_fn(opt_vars):
-            state_guesses = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states=times.shape[0])
+            state_guesses = opt_vars_to_states(
+                opt_vars, pos_init, pos_end_targ, num_states=times.shape[0]
+            )
             return hermite_simpson_collocation_constraints_fn(
                 state_at_knots=state_guesses,
                 times=times,
                 ode_fn=self.ode.ode_fn,
             )
-
 
         (
             self.optimised_trajectory,
@@ -497,7 +498,6 @@ class ScipyCollocationGeodesicSolver(GeodesicSolver):
             disp=disp,
         )
         return self.optimised_trajectory
-
 
     def solve_trajectory_scipy_minimize(
         self,

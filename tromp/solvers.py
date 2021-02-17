@@ -112,19 +112,19 @@ def opt_vars_to_states_and_lagrange(opt_vars, pos_init, pos_end_targ, num_states
 #         self.ode = ode
 #         # self.times = times
 
-    # @abc.abstractmethod
-    # def objective_fn(self, state):
-    #     raise NotImplementedError
+# @abc.abstractmethod
+# def objective_fn(self, state):
+#     raise NotImplementedError
 
-    # @abc.abstractmethod
-    # def solve_trajectory(
-    #     self,
-    #     state_guesses,
-    #     pos_init,
-    #     pos_end_targ,
-    #     times,
-    # ):
-    #     raise NotImplementedError
+# @abc.abstractmethod
+# def solve_trajectory(
+#     self,
+#     state_guesses,
+#     pos_init,
+#     pos_end_targ,
+#     times,
+# ):
+#     raise NotImplementedError
 
 
 class GeodesicSolver(objax.Module, abc.ABC):
@@ -378,19 +378,17 @@ class CollocationGeodesicSolver(GeodesicSolver):
         pos_init,
         pos_end_targ,
         times,
+        # method="BFGS",
+        method="hybr",
+        # method="Newton-CG",
+        # method="trust-ncg",
+        tol=0.01,
     ):
         self.state_guesses = state_guesses
-        self.pos_init = pos_init
-        self.pos_end_targ = pos_end_targ
-        # hack as times needed in collocation_constraints_fn
-        self.times = times  # TODO delete this!!
-
-        method = "SLSQP"
-        # method = "L-BFGS-B"
+        self.times = times
 
         if len(pos_init.shape) == 1:
             pos_dim = pos_init.shape[0]
-            # state_dim = 2 * pos_dim
         state_dim = state_guesses.shape[1]
         num_states = state_guesses.shape[0]
 
@@ -398,35 +396,62 @@ class CollocationGeodesicSolver(GeodesicSolver):
 
         # Initialise lagrange mutlipliers for collocation defects
         num_defects = num_states - 1
+        # lagrange_multipliers = jnp.ones([num_defects * state_dim])
         lagrange_multipliers = jnp.zeros([num_defects * state_dim])
-        print("lagrange_multipliers")
-        print(lagrange_multipliers.shape)
-        opt_vars = jnp.concatenate(
-            [state_guesses_vars, lagrange_multipliers], axis=0
-        )
-        print("opt_vars")
-        print(opt_vars.shape)
+        opt_vars = jnp.concatenate([state_guesses_vars, lagrange_multipliers], axis=0)
         opt_vars_vars = objax.StateVar(opt_vars)
+        # opt_vars = objax.TrainVar(opt_vars)
+        # opt_vars_ref = objax.TrainRef(opt_vars)
 
         # Initialise lagrange objective fn with collocation defect constraints
         objective_args = (pos_init, pos_end_targ, times)
         jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars_vars})
-        jitted_lagrange_objective = objax.Jit(
-            self.lagrange_objective, jitted_fn_vars
+        # jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars})
+        # jitted_lagrange_objective = objax.Jit(
+        #     self.lagrange_objective, jitted_fn_vars
+        # )
+
+        def lagrange_objective(opt_vars):
+            return self.lagrange_objective(opt_vars, *objective_args)
+            # return jitted_lagrange_objective(l, *objective_args)
+
+        # jitted_lagrange_objective = objax.Jit(
+        #     lagrange_objective, jitted_fn_vars
+        # )
+        # jacobian_lagrange_objective = jax.jacfwd(jitted_lagrange_objective)
+        jacobian_lagrange_objective = jax.jacfwd(lagrange_objective)
+        jitted_jacobian_lagrange_objective = objax.Jit(
+            jacobian_lagrange_objective, jitted_fn_vars
         )
+        # hessian_lagrange_objective = jax.jacfwd(jacobian_lagrange_objective)
+        # # hessian_lagrange_objective = jax.jacfwd(jitted_jacobian_lagrange_objective)
+        # jitted_hessian_lagrange_objective = objax.Jit(
+        #     hessian_lagrange_objective, jitted_fn_vars
+        # )
 
-        def lagrange_objective(l):
-
-        self.optimisation_result = sp.optimize.minimize(
-            # self.lagrange_objective,
-            jitted_lagrange_objective,
+        self.optimisation_result = sp.optimize.root(
+            # jitted_lagrange_objective,
+            jitted_jacobian_lagrange_objective,
             opt_vars,
-            # jac=jitted_jac_fn,
-            # jac=jac_fn,
+            tol=tol,
+            # jac=jitted_hessian_lagrange_objective,
+            # jac=jitted_jacobian_lagrange_objective,
+            # hess=jitted_hessian_lagrange_objective,
             method=method,
             options={"disp": True, "maxiter": self.maxiter},
-            args=objective_args,
+            # args=objective_args,
         )
+        # self.optimisation_result = sp.optimize.minimize(
+        #     jitted_lagrange_objective,
+        #     # jitted_jacobian_lagrange_objective,
+        #     opt_vars,
+        #     # jac=jitted_hessian_lagrange_objective,
+        #     # jac=jitted_jacobian_lagrange_objective,
+        #     # hess=jitted_hessian_lagrange_objective,
+        #     method=method,
+        #     options={"disp": True, "maxiter": self.maxiter},
+        #     # args=objective_args,
+        # )
         print("Optimisation Result")
         print(self.optimisation_result)
         opt_vars = self.optimisation_result.x
@@ -434,7 +459,7 @@ class CollocationGeodesicSolver(GeodesicSolver):
         (
             self.optimised_trajectory,
             lagrange_multipliers,
-        ) = self.opt_vars_to_states_and_lagrange(
+        ) = opt_vars_to_states_and_lagrange(
             opt_vars, pos_init, pos_end_targ, num_states
         )
         print("Optimised Trajectory")

@@ -1,6 +1,8 @@
 import jax
 from gpjax.custom_types import InputData, MeanAndVariance, MeanFunc, OutputData
 from gpjax.kernels import Kernel
+import gpjax
+
 # from ProbGeo.gp.gp import (InputData, MeanAndVariance, MeanFunc, OutputData,
 #                            gp_predict)
 # from gpjax.prediction import gp_predict
@@ -10,9 +12,7 @@ from jax import numpy as np
 
 def inv_probit(x):
     jitter = 1e-3  # ensures output is strictly between 0 and 1
-    return (
-        0.5 * (1.0 + jax.lax.erf(x / np.sqrt(2.0))) * (1 - 2 * jitter) + jitter
-    )
+    return 0.5 * (1.0 + jax.lax.erf(x / np.sqrt(2.0))) * (1 - 2 * jitter) + jitter
 
 
 def bernoulli_predict_mean_and_var(Fmu, Fvar):
@@ -70,6 +70,23 @@ def single_mogpe_mixing_probability(
     # return prob_a_0
     return prob_a_0.reshape(-1)
     # return 10 * prob_a_0.reshape(-1)
+
+
+def predict_mixing_probability(
+    # Xnew: InputData, gp: gpjax.models.gp, full_cov: bool = False
+    Xnew: InputData,
+    gp,
+    full_cov: bool = False,
+):
+    if len(Xnew.shape) == 1:
+        Xnew = Xnew.reshape(1, -1)
+    mean, var = gp.predict_f(Xnew, full_cov=full_cov)
+    if full_cov is False:
+        var = var.reshape(-1, 1)
+    prob_a_0, _ = bernoulli_predict_mean_and_var(mean, var)
+    prob_a_1 = 1 - prob_a_0
+    mixing_probs = np.stack([prob_a_0, prob_a_1], -1)
+    return mixing_probs
 
 
 def mogpe_mixing_probability(

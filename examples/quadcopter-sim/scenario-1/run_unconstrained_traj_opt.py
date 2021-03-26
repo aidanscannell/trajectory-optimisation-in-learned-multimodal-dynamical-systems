@@ -16,9 +16,7 @@ from tromp.plotting.solver import plot_solver_trajs_over_svgp
 from tromp.plotting.trajectories import plot_trajs_over_svgp
 from tromp.solvers import CollocationGeodesicSolver
 
-#########################
 # Configure solver params
-#########################
 maxiter = 500  # max number of iterations
 # maxiter = 1500  # max number of iterations
 # maxiter = 10  # max number of iterations
@@ -54,22 +52,21 @@ state_guesses = init_straight_trajectory(
 )
 
 
-################################
 # Configure metric tensor params
-################################
 covariance_weight = 40.0
 covariance_weight = 20.0
 # covariance_weight = 1.0
 # covariance_weight = 5.0
+
+tol = 0.001
+covariance_weight = 1.0
 # covariance_weight = 0.5
 # jitter_ode = 1e-6
 jitter_ode = 1e-4
 # jitter_ode = 1e-9
 jitter_metric = 1e-4
 
-######################################################
 # Load a SVGP gating function from an mogpe checkpoint
-######################################################
 expert_num = 1
 mogpe_dir = "../../../../mogpe/"
 ckpt_dir = (
@@ -82,6 +79,13 @@ data_file = (
     mogpe_dir
     + "examples/quadcopter-sim/scenario-1/data/quad_sim_const_action_scenario_1.npz"
 )
+# ckpt_dir = (
+#     mogpe_dir + "examples/logs/quadcopter-sim/scenario-1/two_experts/03-15-110103"
+# )
+# data_file = (
+#     mogpe_dir
+#     + "examples/quadcopter-sim/scenario-1-all-observations/data/quad_sim_const_action_scenario_1_all_observations.npz"
+# )
 svgp = init_svgp_gpjax_from_mogpe_ckpt(
     config_file, ckpt_dir, data_file, expert_num=expert_num
 )
@@ -130,7 +134,7 @@ plt.savefig(
     transparent=True,
 )
 plt.show()
-traj_save_dir = "./saved-trajectories/opt_traj_unconstrained.npy"
-solver_save_dir = "./saved-trajectories/GeodesicSolver.pickle"
+traj_save_dir = "./saved-trajectories/opt_traj_unconstrained_05.npy"
+solver_save_dir = "./saved-trajectories/GeodesicSolver_05.pickle"
 np.save(traj_save_dir, geodesic_traj)
 collocation_solver.save(solver_save_dir)

@@ -144,3 +144,56 @@ def hermite_simpson_collocation_constraints_fn(state_at_knots, times, ode_fn):
 #             lb_defect,
 #             ub_defect,
 #         )
+
+
+def state_prime_at_midpoints_ode(state_at_knots, times, ode_fn):
+    print("here")
+    print(state_at_knots.shape)
+    times_before = times[0:-1]
+    times_after = times[1:]
+    delta_times = times_after - times_before
+    delta_times = delta_times.reshape(-1, 1)
+
+    def ode_fn_single_state(state):
+        return ode_fn(times, state)
+
+    # State derivative according to the true continuous dynamics
+    state_prime_at_knots = jax.vmap(ode_fn_single_state)(state_at_knots)
+    # state_prime_at_knots = ode_fn(times, state_at_knots)
+
+    # Approx states at mid points using Hermite interpolation
+    state_at_mid_points = states_at_mid_points_hermite_interpolation(
+        state_at_knots,
+        state_prime_at_knots,
+        delta_times=delta_times,
+    )
+
+    # Calculate state derivatives at mid points
+    state_prime_at_mid_points = jax.vmap(ode_fn_single_state)(state_at_mid_points)
+    return state_prime_at_mid_points
+
+
+def state_prime_at_midpoints_hermite_interpolation(state_at_knots, times, ode_fn):
+    times_before = times[0:-1]
+    times_after = times[1:]
+    delta_times = times_after - times_before
+    delta_times = delta_times.reshape(-1, 1)
+
+    def ode_fn_single_state(state):
+        return ode_fn(times, state)
+
+    # State derivative according to the true continuous dynamics
+    state_prime_at_knots = jax.vmap(ode_fn_single_state)(state_at_knots)
+    # state_prime_at_knots = ode_fn(times, state_at_knots)
+
+    # Approx states at mid points using Hermite interpolation
+    state_at_knots_before = state_at_knots[0:-1, :]
+    state_at_knots_after = state_at_knots[1:, :]
+    state_prime_at_knots_before = state_prime_at_knots[0:-1, :]
+    state_prime_at_knots_after = state_prime_at_knots[1:, :]
+
+    # Calculate interpolated state prime
+    interpolated_state_prime_at_mid_points = -3 / 2 * delta_times * (
+        state_at_knots_before - state_at_knots_after
+    ) - 0.25 * (state_prime_at_knots_before + state_prime_at_knots_after)
+    return -interpolated_state_prime_at_mid_points

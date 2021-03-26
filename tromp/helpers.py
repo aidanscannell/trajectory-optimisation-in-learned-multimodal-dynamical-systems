@@ -66,6 +66,39 @@ def init_svgp_gpjax_from_mogpe_ckpt(
     return svgp
 
 
+def init_svgp_gpjax_from_gp_npz(npz_file):
+    likelihood = None
+    num_latent_gps = 1
+    gp = jnp.load(npz_file)
+    mean_function = gpjax.mean_functions.Zero()
+    variance = gp["variance"]
+    lengthscales = gp["lengthscales"]
+    print("var")
+    print(variance)
+    print(lengthscales)
+    inducing_variable = gp["Z"]
+    print(inducing_variable.shape)
+    q_mu = gp["q_mu"]
+    q_sqrt = gp["q_sqrt"]
+    print(q_mu.shape)
+    print(q_sqrt.shape)
+
+    kernel = gpjax.kernels.RBF(variance=variance, lengthscales=lengthscales)
+
+    svgp = gpjax.models.SVGP(
+        kernel,
+        likelihood,
+        inducing_variable,
+        mean_function,
+        num_latent_gps,
+        q_diag=False,
+        q_mu=q_mu,
+        q_sqrt=q_sqrt,
+        whiten=True,
+    )
+    return svgp
+
+
 def create_save_dir():
 
     dir_name = (
@@ -106,6 +139,11 @@ def init_straight_trajectory(
         # TODO dynamically calculate vel_init_guess
         vel_init_guess = jnp.array([0.0000005, 0.0000003])
     vel_guesses = jnp.broadcast_to(vel_init_guess, (num_col_points, pos_dim))
+    vars = np.ones(vel_guesses.shape) * 0.001
+    noise = np.random.normal(scale=vars)
+    print("noise")
+    print(noise)
+    vel_guesses = vel_guesses + noise
     state_guesses = jnp.concatenate([pos_guesses, vel_guesses], -1)
     return state_guesses
 

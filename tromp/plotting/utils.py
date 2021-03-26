@@ -10,15 +10,21 @@ def create_grid(X, N):
         X[:, 1].min(),
         X[:, 1].max(),
     )
-    x1_low *= 1.3
-    x2_low *= 1.3
-    x1_high *= 1.3
-    x2_high *= 1.3
+    # x1_low *= 1.3
+    # x2_low *= 1.3
+    # x1_high *= 1.3
+    # x2_high *= 1.3
+    # x1_low *= 1.2
+    # x2_low *= 1.2
+    # x1_high *= 1.2
+    # x2_high *= 1.2
     # x2_low = -3.0
     # x1_low *= 1.5
     # x2_low *= 1.5
     # x1_high *= 1.5
     # x2_high *= 1.5
+    # x2_low *= 2.0
+    # x2_high *= 2.0
     # mins = X.min(axis=0)
     # print('mins')
     # print(mins)

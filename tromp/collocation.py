@@ -3,6 +3,7 @@ import jax.numpy as np
 import scipy
 from jax.config import config
 from scipy.optimize import Bounds, NonlinearConstraint
+from tromp.ode import geodesic_ode
 
 config.update("jax_enable_x64", True)
 
@@ -22,12 +23,8 @@ def collocation_objective(
     input_dim = 2
     state_guesses = state_guesses.reshape([-1, 2 * input_dim])
     pos_guesses = state_guesses[:, 0:2]
-    pos_guesses = jax.ops.index_update(
-        pos_guesses, jax.ops.index[0, :], pos_init
-    )
-    pos_guesses = jax.ops.index_update(
-        pos_guesses, jax.ops.index[-1, :], pos_end_targ
-    )
+    pos_guesses = jax.ops.index_update(pos_guesses, jax.ops.index[0, :], pos_init)
+    pos_guesses = jax.ops.index_update(pos_guesses, jax.ops.index[-1, :], pos_end_targ)
     norm = np.linalg.norm(pos_guesses, axis=-1, ord=-2)
     print("norm")
     print(norm.shape)
@@ -82,9 +79,7 @@ def collocation(
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
         num_timesteps = times.shape[0]
         dt = times[-1] - times[0]
-        time_col = np.linspace(
-            times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
-        )
+        time_col = np.linspace(times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1)
 
         def ode_fn(state):
             return geodesic_ode(times, state, metric_fn, metric_fn_kwargs)
@@ -103,7 +98,10 @@ def collocation(
         # print('state prime col')
         # print(state_prime_col.shape)
 
-        defect = (state_ll - state_rr) + dt / 6 * (
+        # defect = (state_ll - state_rr) + dt / 6 * (
+        #     state_prime_ll + 4 * state_prime_col + state_prime_rr
+        # )
+        defect = (state_rr - state_ll) - dt / 6 * (
             state_prime_ll + 4 * state_prime_col + state_prime_rr
         )
         print("defect")
@@ -133,16 +131,57 @@ def collocation(
     #                                          0.1)
     # defect_constraints = NonlinearConstraint(collocation_constraint_fn, -0.01,
     #                                          0.01)
-    defect_constraints = NonlinearConstraint(
-        collocation_constraint_fn, -0.1, 0.1
-    )
+    # defect_constraints = NonlinearConstraint(collocation_constraint_fn, -0.1, 0.1)
     # defect_constraints = NonlinearConstraint(collocation_constraint_fn,
     # -10000., 10000.)
-    # bounds = init_bounds(state_guesses, pos_init)
+    defect_constraints = NonlinearConstraint(
+        jax.jit(collocation_constraint_fn), -0.1, 0.1
+    )
+    # defect_constraints = NonlinearConstraint(
+    #     jax.jit(collocation_constraint_fn), -0.01, 0.01
+    # )
+    # defect_constraints = NonlinearConstraint(
+    #     jax.jit(collocation_constraint_fn), -0.05, 0.05
+    # )
+    # defect_constraints = NonlinearConstraint(
+    #     jax.jit(collocation_constraint_fn), -0.001, 0.001
+    # )
+    constraints = defect_constraints
 
+    # bounds = init_bounds(state_guesses, pos_init)
     bounds = start_end_pos_bounds(state_guesses, pos_init, pos_end_targ)
 
-    constraints = defect_constraints
+    loss_args = (pos_init, pos_end_targ, times)
+
+    @jax.jit
+    def jitted_collocation_objective(state_guesses, pos_init, pos_end_targ, times):
+        return collocation_objective(
+            state_guesses, pos_init, pos_end_targ, metric_fn, metric_fn_kwargs, times
+        )
+
+    def sum_of_squares_objective(
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+    ):
+        if len(pos_init.shape) == 1:
+            pos_dim = pos_init.shape[0]
+        state_guesses = state_guesses.reshape(-1, 2 * pos_dim)
+        pos_guesses = state_guesses[:, :pos_dim]
+        sum_of_squares = np.sum(pos_guesses ** 2)
+        # sum_of_squares = jnp.sum(state_guesses ** 2)
+        # return sum_of_squares * 1000
+        return sum_of_squares
+
+    def dummy_objective(
+        state_guesses,
+        pos_init,
+        pos_end_targ,
+        times,
+    ):
+        return 1.0
+
     # method = "L-BFGS-B"
     # method = "CG"
     # method = "TNC"
@@ -154,7 +193,9 @@ def collocation(
     print("prams")
     print(params.shape)
     res = scipy.optimize.minimize(
-        collocation_objective,
+        # jax.jit(sum_of_squares_objective),
+        jax.jit(dummy_objective),
+        # jitted_collocation_objective,
         state_guesses.flatten(),
         # params,
         method=method,
@@ -180,9 +221,7 @@ def collocation_objective_inc_constraints(
         state_guesses = state_guesses.reshape([-1, 2 * input_dim])
         num_timesteps = times.shape[0]
         dt = times[-1] - times[0]
-        time_col = np.linspace(
-            times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
-        )
+        time_col = np.linspace(times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1)
 
         def ode_fn(state):
             return geodesic_ode(times, state, metric_fn, metric_fn_kwargs)
@@ -216,12 +255,8 @@ def collocation_objective_inc_constraints(
     input_dim = 2
     state_guesses = state_guesses.reshape([-1, 2 * input_dim])
     pos_guesses = state_guesses[:, 0:2]
-    pos_guesses = jax.ops.index_update(
-        pos_guesses, jax.ops.index[0, :], pos_init
-    )
-    pos_guesses = jax.ops.index_update(
-        pos_guesses, jax.ops.index[-1, :], pos_end_targ
-    )
+    pos_guesses = jax.ops.index_update(pos_guesses, jax.ops.index[0, :], pos_init)
+    pos_guesses = jax.ops.index_update(pos_guesses, jax.ops.index[-1, :], pos_end_targ)
     norm = np.linalg.norm(pos_guesses, axis=-1)
     norm_sum = np.sum(norm)
     # loss = norm_sum + sum_defect
@@ -289,9 +324,7 @@ def collocation_defect(
     )
     num_timesteps = times.shape[0]
     dt = times[-1] - times[0]
-    time_col = np.linspace(
-        times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
-    )
+    time_col = np.linspace(times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1)
 
     def ode_fn(state):
         return geodesic_ode(times, state, metric_fn, metric_fn_kwargs)
@@ -301,9 +334,7 @@ def collocation_defect(
     state_rr = state_guesses[1:, :]
     state_prime_ll = state_prime[0:-1, :]
     state_prime_rr = state_prime[1:, :]
-    state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
-        state_prime_ll - state_prime_rr
-    )
+    state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (state_prime_ll - state_prime_rr)
     # print('state col')
     # print(state_col.shape)
     state_prime_col = jax.vmap(ode_fn)(state_col)
@@ -395,9 +426,7 @@ def collocation_root(
     print(res.x.shape)
     state_opt = res.x.reshape([*state_guesses.shape])
 
-    state_opt = jax.ops.index_update(
-        state_opt, jax.ops.index[0, 0:input_dim], pos_init
-    )
+    state_opt = jax.ops.index_update(state_opt, jax.ops.index[0, 0:input_dim], pos_init)
     state_opt = jax.ops.index_update(
         state_opt, jax.ops.index[-1, 0:input_dim], pos_end_targ
     )
@@ -450,9 +479,9 @@ def init_lobatto_col_times(pol_deg, end_time=1.0):
     # define collocation points from Lobatto quadrature
     num_col = pol_deg + 1
     # collocation points - t is generalized time, [-1,1]
-    col_times = (
-        np.cos(np.arange(0, num_col, 1) * np.pi / (num_col - 1))
-    ).reshape(1, -1)
+    col_times = (np.cos(np.arange(0, num_col, 1) * np.pi / (num_col - 1))).reshape(
+        1, -1
+    )
     print("col_times")
     print(col_times)
     return col_times
@@ -606,9 +635,7 @@ def collocation_(pos_init, pos_end, metric_fn, metric_fn_kwargs, times):
 
     # loss_args = (pos_init, pos_end, metric_fn, metric_fn_kwargs, times)
 
-    defect_constraints = NonlinearConstraint(
-        collocation_constraints, -0.1, 0.1
-    )
+    defect_constraints = NonlinearConstraint(collocation_constraints, -0.1, 0.1)
     constraints = defect_constraints
     # method = "L-BFGS-B"
     # method = "CG"
@@ -686,9 +713,7 @@ def collocation_interpolation(
     state_guesses = state_guesses.reshape([-1, input_dim])
     num_timesteps = times.shape[0]
     dt = times[-1] - times[0]
-    time_col = np.linspace(
-        times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1
-    )
+    time_col = np.linspace(times[0] + dt / 2, times[-1] - dt / 2, num_timesteps - 1)
 
     def ode_fn(state):
         return geodesic_ode(times, state, metric_fn, metric_fn_kwargs)
@@ -698,9 +723,7 @@ def collocation_interpolation(
     state_rr = state_guesses[1:, :]
     state_prime_ll = state_prime[0:-1, :]
     state_prime_rr = state_prime[1:, :]
-    state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (
-        state_prime_ll - state_prime_rr
-    )
+    state_col = 0.5 * (state_ll + state_rr) + dt / 8 * (state_prime_ll - state_prime_rr)
     # print('state col')
     # print(state_col.shape)
     state_prime_col = jax.vmap(ode_fn)(state_col)

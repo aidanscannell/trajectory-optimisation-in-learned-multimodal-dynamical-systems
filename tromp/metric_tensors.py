@@ -3,10 +3,15 @@ import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import objax
-from gpjax.custom_types import InputData
-# from gpjax.kernels import Kernel
+from gpjax.custom_types import InputData, OutputData
+
+from gpjax.kernels import Kernel
 from gpjax.models import SVGP, GPBase
-# from gpjax.prediction import gp_jacobian
+
+from gpjax.prediction import gp_jacobian
+
+# from gpjax.gp_old2.prediction import gp_jacobian
+
 from gpjax.utilities import leading_transpose
 
 MetricTensor = jnp.ndarray
@@ -39,9 +44,7 @@ class SVGPMetricTensor(RiemannianMetricTensor):
     def __call__(self, Xnew: InputData, full_cov: bool = True):
         return self.metric_fn(Xnew, full_cov=full_cov)
 
-    def grad_vec_metric_tensor_wrt_Xnew(
-        self, Xnew: InputData, full_cov: bool = True
-    ):
+    def grad_vec_metric_tensor_wrt_Xnew(self, Xnew: InputData, full_cov: bool = True):
         def calc_vec_metric_tensor(Xnew):
             # pos = pos.reshape(1, -1)
             print("inside vec metric tensor Xnew")
@@ -100,9 +103,7 @@ class SVGPMetricTensor(RiemannianMetricTensor):
 
         print("before gp.predict_jac what is Xnew.shape")
         print(Xnew.shape)
-        jac_mean, jac_cov = self.gp.predict_jacobian_f_wrt_Xnew(
-            Xnew, full_cov=full_cov
-        )
+        jac_mean, jac_cov = self.gp.predict_jacobian_f_wrt_Xnew(Xnew, full_cov=full_cov)
         # TODO this is only true if full_cov=True
         # assert jac_mean.shape == (num_data, input_dim, 1)
         # assert jac_cov.shape == (num_data, input_dim, input_dim)
@@ -116,8 +117,10 @@ class SVGPMetricTensor(RiemannianMetricTensor):
 
         # jax.experimental.host_callback.id_print(expected_jac_outer_prod)
         # expected_metric_tensor = expected_jac_outer_prod + cov_weight * output_dim * cov_j
+        self.mode_weight = 1.0
         expected_metric_tensor = (
-            expected_jac_outer_prod + self.covariance_weight * jac_cov
+            self.mode_weight * expected_jac_outer_prod
+            + self.covariance_weight * jac_cov
         )
         print("expected_metric_tensor")
         print(expected_metric_tensor.shape)
@@ -228,76 +231,76 @@ def metric_tensor_fn(Xnew, fun, fun_kwargs):
 #     return metric_tensor, jac
 
 
-# # @jax.partial(jax.jit, static_argnums=(1, 2, 3, 4))
-# def gp_metric_tensor(
-#     Xnew: InputData,
-#     X: InputData,
-#     kernel: Kernel,
-#     mean_func: MeanFunc,
-#     f: OutputData,
-#     full_cov: bool = True,
-#     q_sqrt=None,
-#     cov_weight: jnp.float64 = 1.0,
-#     jitter=1.0e-4,
-#     white: bool = True,
-# ):
-#     def calc_expected_metric_tensor_single(x):
-#         if len(x.shape) == 1:
-#             x = x.reshape(1, input_dim)
+# @jax.partial(jax.jit, static_argnums=(1, 2, 3, 4))
+def gp_metric_tensor(
+    Xnew: InputData,
+    X: InputData,
+    kernel: Kernel,
+    mean_func,
+    # mean_func: MeanFunc,
+    f: OutputData,
+    full_cov: bool = True,
+    q_sqrt=None,
+    cov_weight: jnp.float64 = 1.0,
+    jitter=1.0e-4,
+    white: bool = True,
+):
+    def calc_expected_metric_tensor_single(x):
+        if len(x.shape) == 1:
+            x = x.reshape(1, input_dim)
 
-#         mu_j, cov_j = gp_jacobian(
-#             # Xnew,
-#             x,
-#             X,
-#             kernel,
-#             mean_func,
-#             f=f,
-#             full_cov=full_cov,
-#             # full_cov=False,
-#             q_sqrt=q_sqrt,
-#             jitter=jitter,
-#             white=True,
-#         )
-#         # mu_j, cov_j = gp_jacobian_hard_coded(cov_fn, x, X, Y, jitter=jitter)
-#         assert mu_j.shape == (input_dim, 1)
-#         assert cov_j.shape == (input_dim, input_dim)
+        mu_j, cov_j = gp_jacobian(
+            # Xnew,
+            x,
+            X,
+            kernel,
+            mean_func,
+            f=f,
+            full_cov=full_cov,
+            # full_cov=False,
+            q_sqrt=q_sqrt,
+            jitter=jitter,
+            white=True,
+        )
+        # mu_j, cov_j = gp_jacobian_hard_coded(cov_fn, x, X, Y, jitter=jitter)
+        assert mu_j.shape == (input_dim, 1)
+        assert cov_j.shape == (input_dim, input_dim)
 
-#         expected_jac_outer_prod = jnp.matmul(
-#             mu_j, mu_j.T
-#         )  # [input_dim x input_dim]
-#         assert expected_jac_outer_prod.shape == (input_dim, input_dim)
+        expected_jac_outer_prod = jnp.matmul(mu_j, mu_j.T)  # [input_dim x input_dim]
+        assert expected_jac_outer_prod.shape == (input_dim, input_dim)
 
-#         # expected_metric_tensor = expected_jac_outer_prod + cov_weight * output_dim * cov_j
-#         expected_metric_tensor = expected_jac_outer_prod + cov_weight * cov_j
-#         # expected_metric_tensor = cov_weight * cov_j.T
-#         # expected_metric_tensor = cov_j
-#         assert expected_metric_tensor.shape == (input_dim, input_dim)
-#         return expected_metric_tensor, mu_j, cov_j
+        # expected_metric_tensor = expected_jac_outer_prod + cov_weight * output_dim * cov_j
+        expected_metric_tensor = expected_jac_outer_prod + cov_weight * cov_j
+        # expected_metric_tensor = cov_weight * cov_j.T
+        # expected_metric_tensor = cov_j
+        assert expected_metric_tensor.shape == (input_dim, input_dim)
+        return expected_metric_tensor, mu_j, cov_j
 
-#     num_test_inputs = Xnew.shape[0]
-#     input_dim = Xnew.shape[1]
-#     output_dim = f.shape[1]
-#     print("inside gp_metric_tensor")
-#     print(output_dim)
+    num_test_inputs = Xnew.shape[0]
+    input_dim = Xnew.shape[1]
+    output_dim = f.shape[1]
+    print("inside gp_metric_tensor")
+    print(output_dim)
 
-#     expected_metric_tensor, mu_j, cov_j = jax.vmap(
-#         calc_expected_metric_tensor_single, in_axes=(0)
-#     )(Xnew)
-#     return expected_metric_tensor, mu_j, cov_j
+    expected_metric_tensor, mu_j, cov_j = jax.vmap(
+        calc_expected_metric_tensor_single, in_axes=(0)
+    )(Xnew)
+    return expected_metric_tensor, mu_j, cov_j
 
 
 # @jax.partial(jax.jit, static_argnums=(1, 2))
-# def calc_vec_metric_tensor(pos, metric_fn, metric_fn_kwargs):
-#     print("here calc vec metric tensor")
-#     print(pos.shape)
-#     pos = pos.reshape(1, -1)
-#     try:
-#         metric_tensor, _ = metric_fn(pos, **metric_fn_kwargs)
-#         # TODO add the correct exception
-#     except:
-#         metric_tensor, _, _ = metric_fn(pos, **metric_fn_kwargs)
-#     input_dim = pos.shape[1]
-#     vec_metric_tensor = metric_tensor.reshape(
-#         input_dim * input_dim,
-#     )
-#     return vec_metric_tensor
+# @jax.partial(jax.jit, static_argnums=(1))
+def calc_vec_metric_tensor(pos, metric_fn, metric_fn_kwargs):
+    print("here calc vec metric tensor")
+    print(pos.shape)
+    pos = pos.reshape(1, -1)
+    try:
+        metric_tensor, _ = metric_fn(pos, **metric_fn_kwargs)
+        # TODO add the correct exception
+    except:
+        metric_tensor, _, _ = metric_fn(pos, **metric_fn_kwargs)
+    input_dim = pos.shape[1]
+    vec_metric_tensor = metric_tensor.reshape(
+        input_dim * input_dim,
+    )
+    return vec_metric_tensor

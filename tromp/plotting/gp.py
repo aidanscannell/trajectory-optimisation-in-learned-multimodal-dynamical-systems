@@ -1,24 +1,27 @@
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from tromp.plotting.utils import create_grid
+import jax.numpy as jnp
 
 cmap = cm.coolwarm
 cmap = cm.PRGn
 cmap = cm.PiYG
 
 
-def plot_contourf(fig, ax, x, y, z, label=""):
+def plot_contourf(fig, ax, x, y, z, label="", levels=20, cbar=True):
     contf = ax.contourf(
         x,
         y,
         z.reshape(x.shape),
-        # cmap=cm.coolwarm,
         cmap=cmap,
-        levels=20,
+        levels=levels,
         antialiased=False,
     )
-    cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
-    cbar.set_label(label)
+    ax.set_xlabel("$x$")
+    ax.set_ylabel("$y$")
+    if cbar:
+        cbar = fig.colorbar(contf, shrink=0.5, aspect=5, ax=ax)
+        cbar.set_label(label)
 
 
 def plot_tricontourf(fig, ax, x, y, z, label=""):
@@ -28,7 +31,7 @@ def plot_tricontourf(fig, ax, x, y, z, label=""):
 
 
 def plot_mean_and_var(xx, yy, mu, var, llabel="mean", rlabel="variance"):
-    # fig, axs = plt.subplots(1, 2, figsize=(18, 4))
+    # fig, axs = plt.subplots(1, 2, figsize=(16, 4))
     fig, axs = plt.subplots(1, 2, figsize=(12, 4))
     plot_contourf(fig, axs[0], xx, yy, mu, label=llabel)
     plot_contourf(fig, axs[1], xx, yy, var, label=rlabel)
@@ -58,6 +61,19 @@ def plot_jacobian_var(xx, yy, xy, cov_j):
 
 def plot_svgp_mean_and_var(svgp, mean_label="Mean", var_label="Variance"):
     Xnew, xx, yy = create_grid(svgp.inducing_variable, 961)
+
+    # hack for icra plots - should be removed
+    N = 1000
+    sqrtN = int(jnp.sqrt(N))
+    x1_low = -3
+    x1_high = 3
+    x2_low = -3
+    x2_high = 3
+    xx = jnp.linspace(x1_low, x1_high, sqrtN)
+    yy = jnp.linspace(x2_low, x2_high, sqrtN)
+    xx, yy = jnp.meshgrid(xx, yy)
+    Xnew = jnp.column_stack([xx.reshape(-1), yy.reshape(-1)])
+
     fmean, fvar = svgp.predict_f(Xnew, full_cov=False)
     return plot_mean_and_var(xx, yy, fmean, fvar, llabel=mean_label, rlabel=var_label)
 

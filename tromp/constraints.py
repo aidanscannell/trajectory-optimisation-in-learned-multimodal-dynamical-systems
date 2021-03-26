@@ -17,7 +17,6 @@ def states_at_mid_points_hermite_interpolation(
     :param state_prime_at_knots: states derivatives at knot points [num_states, state_dim]
     :param delta_times: delta time between knot points [num_states-1, 1] e.g. t_{k+1} - t_{k}
     :returns: interpolated states at mid points [num_states-1, state_dim]
-
     """
     state_at_knots_before = state_at_knots[0:-1, :]
     state_at_knots_after = state_at_knots[1:, :]
@@ -26,9 +25,6 @@ def states_at_mid_points_hermite_interpolation(
     state_at_mid_points = 0.5 * (
         state_at_knots_before + state_at_knots_after
     ) + delta_times / 8 * (state_prime_at_knots_before - state_prime_at_knots_after)
-    # state_at_mid_points = 0.5 * (state_at_knots_before + state_at_knots_after) + dt / 8 * (
-    #     state_prime_at_knots_before - state_prime_at_knots_after
-    # )
     return state_at_mid_points
 
 
@@ -55,38 +51,18 @@ def hermite_simpson_collocation_constraints_fn(state_at_knots, times, ode_fn):
 
     At each knot point the state and its derivative should equal those from the system dynamics (ode_fn)
 
-    :param state_guesses: states at knot points [num_states, state_dim]
+    :param state_at_knots: states at knot points [num_states, state_dim]
+    :param times: [num_states,]
     :param ode_fn:
     :returns: collocation defects [num_states-1, state_dim]
     """
-    # num_timesteps = times.shape[0]
-    num_states = times.shape[0]
-    print("inside hermite simpson defects")
-    print(state_at_knots.shape)
-    print(times.shape)
-
-    # dt = times[-1] - times[0]
-    # dt = times[1] - times[0]
     times_before = times[0:-1]
     times_after = times[1:]
     delta_times = times_after - times_before
-    # times_at_mid_points = jnp.linspace(
-    #     times[0] + delta_times[0] / 2,
-    #     times[-1] - delta_times[0] / 2,
-    #     num_states - 1,
-    # )
-    # dt = times_after - times_before
-    print("delta_times")
-    print(delta_times.shape)
     delta_times = delta_times.reshape(-1, 1)
-    print(delta_times.shape)
 
     def ode_fn_single_state(state):
         return ode_fn(times, state)
-
-    # TODO time should be used inside ODE
-    # def ode_fn_single(time, state):
-    #     return ode_fn(state)
 
     # State derivative according to the true continuous dynamics
     state_prime_at_knots = jax.vmap(ode_fn_single_state)(state_at_knots)
@@ -98,22 +74,16 @@ def hermite_simpson_collocation_constraints_fn(state_at_knots, times, ode_fn):
     state_prime_at_knots_before = state_prime_at_knots[0:-1, :]
     state_prime_at_knots_after = state_prime_at_knots[1:, :]
     state_at_mid_points = states_at_mid_points_hermite_interpolation(
-        # state_at_knots, state_prime_at_knots, times_mid_points=times_mid_points
         state_at_knots,
         state_prime_at_knots,
         delta_times=delta_times,
     )
 
-    print("state at mid ")
-    print(state_at_mid_points.shape)
-    # Calc state derivatives at mid points
+    # Calculate state derivatives at mid points
     state_prime_at_mid_points = jax.vmap(ode_fn_single_state)(state_at_mid_points)
-    # state_prime_at_mid_points = ode_fn(
-    #     times_at_mid_points, state_at_mid_points
-    # )
+    # state_prime_at_mid_points = ode_fn(times_at_mid_points, state_at_mid_points)
 
-    # defects = (state_at_knots_before - state_at_knots_after) + dt / 6 * (
-    # defects = (state_at_knots_after - state_at_knots_before) - dt / 6 * (
+    # Calculate collocation defects
     defects = (state_at_knots_after - state_at_knots_before) - delta_times / 6 * (
         state_prime_at_knots_before
         + 4 * state_prime_at_mid_points
@@ -122,28 +92,6 @@ def hermite_simpson_collocation_constraints_fn(state_at_knots, times, ode_fn):
     print("Collcation Defects")
     print(defects)
     return defects.flatten()
-
-
-# def hermite_simpson_trajectory():
-
-
-# def init_scipy_collocation_constraints(jit=True):
-#     # Initialise collocation defects as constraints
-#     if jit:
-#         jitted_collocation_defects = objax.Jit(
-#             collocation_defects, jitted_fn_vars
-#         )
-#         jitted_collocation_constraints = NonlinearConstraint(
-#             jitted_collocation_defects,
-#             lb_defect,
-#             ub_defect,
-#         )
-#     else:
-#         collocation_constraints = NonlinearConstraint(
-#             collocation_defects,
-#             lb_defect,
-#             ub_defect,
-#         )
 
 
 def state_prime_at_midpoints_ode(state_at_knots, times, ode_fn):

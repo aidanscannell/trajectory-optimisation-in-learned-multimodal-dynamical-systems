@@ -5,8 +5,11 @@ description = "Trajectory optimisation in learned multimodal dynamical systems v
 authors = ["Aidan Scannell <scannell.aidan@gmail.com>"]
 
 [tool.poetry.dependencies]
+# dataclasses is built-in for python ^3.8 (but not earlier) and Poetry can't handle conditional dependencies in
+# other packages (e.g. gpflow) so we set python ^3.8. Python 3.6 should work using pip...
 python = "^3.8"
-numpy = "1.19.4"
+# python = ">=3.6,<3.10"  
+# python = "^3.6"  
 jax = "^0.2.5"
 # jaxlib = "^0.1.56"
 jaxlib = "^0.1.59"

@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
-import objax
+# import objax
 import scipy as sp
 from bunch import Bunch
 from jax.config import config

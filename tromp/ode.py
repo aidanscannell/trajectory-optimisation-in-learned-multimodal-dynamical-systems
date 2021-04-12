@@ -2,7 +2,7 @@ import abc
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
-import objax
+# import objax
 from gpjax.utilities import leading_transpose
 
 from tromp.metric_tensors import RiemannianMetricTensor, calc_vec_metric_tensor
@@ -10,7 +10,8 @@ from tromp.metric_tensors import RiemannianMetricTensor, calc_vec_metric_tensor
 States = jnp.ndarray
 
 
-class ODE(objax.Module, abc.ABC):
+# class ODE(objax.Module, abc.ABC):
+class ODE(abc.ABC):
     @abc.abstractmethod
     def ode_fn(self, times: jnp.ndarray, states: States) -> States:
         raise NotImplementedError

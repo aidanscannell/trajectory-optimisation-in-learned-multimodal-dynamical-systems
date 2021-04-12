@@ -2,13 +2,13 @@ import jax
 
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-import objax
+# import objax
 from gpjax.custom_types import InputData, OutputData
 
+from gpjax.models import SVGP
 from gpjax.kernels import Kernel
-from gpjax.models import SVGP, GPBase
 
-from gpjax.prediction import gp_jacobian
+# from gpjax.prediction import gp_jacobian
 
 # from gpjax.gp_old2.prediction import gp_jacobian
 
@@ -17,7 +17,8 @@ from gpjax.utilities import leading_transpose
 MetricTensor = jnp.ndarray
 
 
-class MetricTensorBase(objax.Module):
+# class MetricTensorBase(objax.Module):
+class MetricTensorBase():
     def metric_fn(self, Xnew: InputData) -> MetricTensor:
         raise NotImplementedError
 

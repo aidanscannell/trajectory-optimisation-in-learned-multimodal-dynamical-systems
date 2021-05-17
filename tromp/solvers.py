@@ -1,11 +1,12 @@
 import abc
-import time
 import pickle
+import time
 
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+
 # import objax
 import scipy as sp
 from bunch import Bunch
@@ -127,7 +128,8 @@ def opt_vars_to_states_and_lagrange(opt_vars, pos_init, pos_end_targ, num_states
 #     raise NotImplementedError
 
 
-class GeodesicSolver(objax.Module, abc.ABC):
+# class GeodesicSolver(objax.Module, abc.ABC):
+class GeodesicSolver(abc.ABC):
     def __init__(self, ode: GeodesicODE):
         self.ode = ode
         # self.times = times
@@ -297,12 +299,12 @@ class CollocationGeodesicSolver(GeodesicSolver):
         lagrange_multipliers = jnp.ones([num_defects * state_dim])
         opt_vars = jnp.concatenate([state_guesses_vars, lagrange_multipliers], axis=0)
         # opt_vars_vars = objax.StateVar(opt_vars)
-        opt_vars = objax.TrainVar(opt_vars)
-        opt_vars_ref = objax.TrainRef(opt_vars)
+        # opt_vars = objax.TrainVar(opt_vars)
+        # opt_vars_ref = objax.TrainRef(opt_vars)
 
         # Initialise lagrange objective fn with collocation defect constraints
         objective_args = (pos_init, pos_end_targ, times)
-        jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars})
+        # jitted_fn_vars = objax.VarCollection({"opt_vars": opt_vars})
         # jitted_lagrange_objective = objax.Jit(
         #     self.lagrange_objective, jitted_fn_vars
         # )
@@ -325,11 +327,13 @@ class CollocationGeodesicSolver(GeodesicSolver):
             )
             return updated_opt_vars, loss
 
-        jitted_optimiser_step = objax.Jit(optimiser_step, jitted_fn_vars)
+        # jitted_optimiser_step = objax.Jit(optimiser_step, jitted_fn_vars)
+        jitted_optimiser_step = jax.jit(optimiser_step)
 
-        states = opt_vars_to_states(
-            opt_vars_ref.value, pos_init, pos_end_targ, num_states
-        )
+        # states = opt_vars_to_states(
+        #     opt_vars_ref.value, pos_init, pos_end_targ, num_states
+        # )
+        states = opt_vars_to_states(opt_vars, pos_init, pos_end_targ, num_states)
 
         print("tol", states_tol / step_size)
         self.loss_at_steps = []

@@ -18,11 +18,11 @@ jaxlib = "^0.1.59"
 # jaxlib = "0.1.56"
 matplotlib = "^3.3.3"
 # tensorflow-probability = "^0.12.0"
-tensorflow-probability = "0.12.1"
+# tensorflow-probability = "0.12.1"
 # tensorflow-probability = "^0.9.0"
-gpflow = "2.1.4"
+# gpflow = "2.1.4"
 # tensorflow = "^2.2.0"
-tensorflow = "~2.4.0"
+# tensorflow = "~2.4.0"
 scipy = "^1.4"
 # scipy = "1.5.4"
 # scipy = "1.4.1"
@@ -31,8 +31,8 @@ scipy = "^1.4"
 # gpflow = "^2.1.0"
 cloudpickle = "1.3.0"
 
-mogpe = {git = "https://github.com/aidanscannell/mogpe.git", branch="develop"}  # my Mixtures of GP Experts library
-simenvs = {git = "https://github.com/aidanscannell/simenvs.git"}  # my simulation environment library
+# mogpe = {git = "https://github.com/aidanscannell/mogpe.git", branch="develop"}  # my Mixtures of GP Experts library
+# simenvs = {git = "https://github.com/aidanscannell/simenvs.git"}  # my simulation environment library
 # gpjax = {git = "https://github.com/aidanscannell/GPJax.git", branch = "custom_state_management"} # my Jax GP library
 # gpjax = {path = "../GPJax", develop=true}
 gpjax = {git = "https://github.com/aidanscannell/GPJax", tag="v0.1.0"} # my Jax GP library

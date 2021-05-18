@@ -38,9 +38,11 @@ gpjax = {path = "../GPJax", develop=true}
 # gpjax = {git = "https://github.com/aidanscannell/GPJax", tag="v0.1.0"} # my Jax GP library
 # gpjax = {git = "https://github.com/aidanscannell/GPJax", branch = "objax"} # my Jax GP library
 # mogpe = {path = "../mogpe", develop=true} # my Mixtures of GP Experts library
+chex = "^0.0.7"
 # simenvs = {path = "../sim-envs", develop=true} # my simulation environment library
 
 [tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
